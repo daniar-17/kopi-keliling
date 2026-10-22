@@ -1,0 +1,100 @@
+
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #0c9b62;
+  --color-brand-strong: #077a4d;
+  --color-brand-deep: #06663f;
+  --color-brand-soft: #e9f6f0;
+  --color-canvas: #ffffff;
+  --color-mist: #f5f7f6;
+  --color-ink: #202923;
+  --color-muted: #6b756f;
+  --color-line: #e5eae7;
+
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Plus Jakarta Sans", system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--color-brand);
+    color: #ffffff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-strong);
+    outline-offset: 2px;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+}
+
+/* Penyesuaian kecil agar kontrol peta menyatu dengan halaman. */
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--color-mist);
+}
+
+.leaflet-popup-content-wrapper {
+  min-width: 17rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  box-shadow: 0 6px 20px rgba(32, 41, 35, 0.12);
+}
+
+.leaflet-popup-content {
+  width: auto !important;
+  margin: 0.75rem 3.25rem 0.75rem 0.9rem;
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.leaflet-control-zoom a,
+.leaflet-touch .leaflet-control-zoom-in,
+.leaflet-touch .leaflet-control-zoom-out {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  line-height: 2.75rem !important;
+  font-size: 1.25rem !important;
+  color: var(--color-ink);
+}
+
+/* Tutup popup dan kontrol zoom tetap nyaman disentuh di layar kecil. */
+.leaflet-popup-close-button {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  padding: 0 !important;
+  color: var(--color-muted) !important;
+  font-size: 1.25rem !important;
+  line-height: 2.75rem !important;
+}
+
+.leaflet-control-attribution {
+  font-size: 10px;
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-muted) !important;
+}

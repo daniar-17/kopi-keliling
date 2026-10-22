@@ -1,0 +1,23 @@
+
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    platform: linux/amd64
+    container_name: kopi-keliling-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kopi_keliling
+      POSTGRES_USER: kopi_user
+      POSTGRES_PASSWORD: kopi_local_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - kopi_keliling_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kopi_user -d kopi_keliling"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  kopi_keliling_data:
