@@ -318,7 +318,7 @@ function MapView({
               />
             ))}
           </span>
-          Warna titik: pedagang
+          Pedagang
         </div>
 
         <div className="flex items-center gap-2">

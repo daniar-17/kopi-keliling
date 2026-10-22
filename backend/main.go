@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -35,6 +38,30 @@ type Merchant struct {
 	Latitude     *float64 `json:"latitude"`
 	Longitude    *float64 `json:"longitude"`
 	IsAvailable  bool     `json:"is_available"`
+}
+
+// Batas jumlah pedagang per halaman.
+const (
+	defaultMerchantsPerPage = 6
+	maxMerchantsPerPage     = 100
+)
+
+type BrandCount struct {
+	BrandName string `json:"brand_name"`
+	Count     int64  `json:"count"`
+}
+
+type MerchantsMeta struct {
+	Page        int64        `json:"page"`
+	Limit       int64        `json:"limit"`
+	Total       int64        `json:"total"`
+	TotalPages  int64        `json:"total_pages"`
+	BrandCounts []BrandCount `json:"brand_counts"`
+}
+
+type MerchantsResponse struct {
+	Data []Merchant    `json:"data"`
+	Meta MerchantsMeta `json:"meta"`
 }
 
 func main() {
@@ -174,23 +201,132 @@ func getBrands(w http.ResponseWriter, r *http.Request) {
 }
 
 func getMerchants(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.QueryContext(r.Context(), `
-		SELECT
-			m.id,
-			m.merchant_name,
-			b.id AS brand_id,
-			b.name AS brand_name,
-			m.phone,
-			ST_Y(m.location::geometry) AS latitude,
-			ST_X(m.location::geometry) AS longitude,
-			m.is_available
-		FROM merchants m
-		JOIN users u ON u.id = m.user_id
-		JOIN brands b ON b.id = m.brand_id
-		WHERE u.is_active = TRUE
+	query := r.URL.Query()
+
+	page, err := parsePaginationParam(query.Get("page"), 1)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Parameter 'page' harus angka bulat positif",
+		})
+		return
+	}
+
+	limit, err := parsePaginationParam(
+		query.Get("limit"),
+		defaultMerchantsPerPage,
+	)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Parameter 'limit' harus angka bulat positif",
+		})
+		return
+	}
+
+	if limit > maxMerchantsPerPage {
+		limit = maxMerchantsPerPage
+	}
+
+	brand := strings.TrimSpace(query.Get("brand"))
+
+	// Koordinat pengguna bersifat opsional; bila dikirim, hasil diurutkan
+	// dari pedagang yang paling dekat.
+	var (
+		userLatitude    float64
+		userLongitude   float64
+		hasUserLocation bool
+	)
+
+	rawLatitude := strings.TrimSpace(query.Get("latitude"))
+	rawLongitude := strings.TrimSpace(query.Get("longitude"))
+
+	if rawLatitude != "" || rawLongitude != "" {
+		latitude, errLatitude := strconv.ParseFloat(rawLatitude, 64)
+		longitude, errLongitude := strconv.ParseFloat(rawLongitude, 64)
+
+		if errLatitude != nil || errLongitude != nil ||
+			latitude < -90 || latitude > 90 ||
+			longitude < -180 || longitude > 180 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Parameter 'latitude' dan 'longitude' harus koordinat yang valid",
+			})
+			return
+		}
+
+		userLatitude = latitude
+		userLongitude = longitude
+		hasUserLocation = true
+	}
+
+	// Filter dasar mengikuti kebutuhan aplikasi: hanya pedagang dari
+	// pengguna aktif, brand aktif, sedang berjualan, dan punya koordinat
+	// untuk ditampilkan di peta.
+	where := `u.is_active = TRUE
 		  AND b.is_active = TRUE
-		ORDER BY m.id ASC
-	`)
+		  AND m.is_available = TRUE
+		  AND m.location IS NOT NULL`
+
+	args := []any{}
+
+	if brand != "" {
+		args = append(args, brand)
+		where += fmt.Sprintf(" AND b.name = $%d", len(args))
+	}
+
+	var total int64
+
+	if err := db.QueryRowContext(
+		r.Context(),
+		fmt.Sprintf(`
+			SELECT COUNT(*)
+			FROM merchants m
+			JOIN users u ON u.id = m.user_id
+			JOIN brands b ON b.id = m.brand_id
+			WHERE %s
+		`, where),
+		args...,
+	).Scan(&total); err != nil {
+		log.Printf("Gagal menghitung jumlah pedagang: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Gagal mengambil data pedagang",
+		})
+		return
+	}
+
+	orderBy := "m.id ASC"
+
+	if hasUserLocation {
+		args = append(args, userLongitude, userLatitude)
+		orderBy = fmt.Sprintf(
+			"m.location <-> ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography ASC",
+			len(args)-1,
+			len(args),
+		)
+	}
+
+	offset := (page - 1) * limit
+	args = append(args, limit, offset)
+
+	rows, err := db.QueryContext(
+		r.Context(),
+		fmt.Sprintf(`
+			SELECT
+				m.id,
+				m.merchant_name,
+				b.id AS brand_id,
+				b.name AS brand_name,
+				m.phone,
+				ST_Y(m.location::geometry) AS latitude,
+				ST_X(m.location::geometry) AS longitude,
+				m.is_available
+			FROM merchants m
+			JOIN users u ON u.id = m.user_id
+			JOIN brands b ON b.id = m.brand_id
+			WHERE %s
+			ORDER BY %s
+			LIMIT $%d OFFSET $%d
+		`, where, orderBy, len(args)-1, len(args)),
+		args...,
+	)
 	if err != nil {
 		log.Printf("Gagal mengambil daftar pedagang: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{
@@ -248,7 +384,80 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, merchants)
+	// Jumlah pedagang aktif per brand untuk opsi filter di frontend.
+	brandCounts := make([]BrandCount, 0)
+
+	countRows, err := db.QueryContext(r.Context(), `
+		SELECT b.name, COUNT(*)
+		FROM merchants m
+		JOIN users u ON u.id = m.user_id
+		JOIN brands b ON b.id = m.brand_id
+		WHERE u.is_active = TRUE
+		  AND b.is_active = TRUE
+		  AND m.is_available = TRUE
+		  AND m.location IS NOT NULL
+		GROUP BY b.name
+		ORDER BY b.name ASC
+	`)
+	if err != nil {
+		log.Printf("Gagal menghitung jumlah pedagang per brand: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Gagal mengambil data pedagang",
+		})
+		return
+	}
+	defer countRows.Close()
+
+	for countRows.Next() {
+		var brandCount BrandCount
+
+		if err := countRows.Scan(
+			&brandCount.BrandName,
+			&brandCount.Count,
+		); err != nil {
+			log.Printf("Gagal membaca data jumlah brand: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Gagal membaca data pedagang",
+			})
+			return
+		}
+
+		brandCounts = append(brandCounts, brandCount)
+	}
+
+	if err := countRows.Err(); err != nil {
+		log.Printf("Gagal membaca hasil query jumlah brand: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Gagal membaca data pedagang",
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, MerchantsResponse{
+		Data: merchants,
+		Meta: MerchantsMeta{
+			Page:        page,
+			Limit:       limit,
+			Total:       total,
+			TotalPages:  (total + limit - 1) / limit,
+			BrandCounts: brandCounts,
+		},
+	})
+}
+
+// parsePaginationParam membaca parameter pagination. Nilai kosong memakai
+// default, selain angka bulat positif ditolak.
+func parsePaginationParam(raw string, fallback int64) (int64, error) {
+	if raw == "" {
+		return fallback, nil
+	}
+
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || value < 1 {
+		return 0, fmt.Errorf("nilai tidak valid: %q", raw)
+	}
+
+	return value, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, data any) {

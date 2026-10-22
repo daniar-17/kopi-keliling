@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Coffee,
   LocateFixed,
   LoaderCircle,
@@ -17,6 +19,9 @@ type UserLocation = {
 }
 
 const ALL_BRANDS = 'Semua brand'
+
+// Batas jumlah pedagang per halaman pada grid 2 kolom tampilan desktop.
+const MERCHANTS_PER_PAGE = 6
 
 type Brand = {
   id: number
@@ -34,6 +39,23 @@ type ApiMerchant = {
   latitude: number | null
   longitude: number | null
   is_available: boolean
+}
+
+// Metadata pagination yang dikirim backend bersama data pedagang.
+type MerchantsMeta = {
+  page: number
+  limit: number
+  total: number
+  total_pages: number
+  brand_counts: {
+    brand_name: string
+    count: number
+  }[]
+}
+
+type ApiMerchantsResponse = {
+  data: ApiMerchant[]
+  meta: MerchantsMeta
 }
 
 type Merchant = {
@@ -90,6 +112,13 @@ function HomePage() {
     useState<number | null>(null)
   const [selectedBrand, setSelectedBrand] = useState(ALL_BRANDS)
 
+  // Halaman daftar disimpan bersama brand-nya supaya ganti brand otomatis
+  // kembali ke halaman 1 tanpa perlu efek tambahan.
+  const [pageState, setPageState] = useState({
+    brand: ALL_BRANDS,
+    page: 1,
+  })
+
   const [brands, setBrands] = useState<Brand[]>([])
   const [isLoadingBrands, setIsLoadingBrands] = useState(true)
   const [brandError, setBrandError] = useState('')
@@ -97,6 +126,8 @@ function HomePage() {
   const [merchants, setMerchants] = useState<Merchant[]>([])
   const [isLoadingMerchants, setIsLoadingMerchants] = useState(true)
   const [merchantError, setMerchantError] = useState('')
+  const [merchantsMeta, setMerchantsMeta] =
+    useState<MerchantsMeta | null>(null)
 
   const [userLocation, setUserLocation] =
     useState<UserLocation | null>(null)
@@ -104,6 +135,16 @@ function HomePage() {
   const [locationMessage, setLocationMessage] = useState('')
 
   const mapSectionRef = useRef<HTMLElement>(null)
+
+  // Jumlah halaman diambil dari meta respons backend, dan halaman aktif
+  // dihitung saat render: brand yang baru dipilih memulai dari halaman 1,
+  // dan halaman tidak boleh melebihi jumlah yang tersisa.
+  const totalPages = Math.max(1, merchantsMeta?.total_pages ?? 1)
+
+  const currentPage = Math.min(
+    pageState.brand === selectedBrand ? pageState.page : 1,
+    totalPages,
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -113,8 +154,24 @@ function HomePage() {
         setIsLoadingMerchants(true)
         setMerchantError('')
 
+        const params = new URLSearchParams({
+          page: String(currentPage),
+          limit: String(MERCHANTS_PER_PAGE),
+        })
+
+        // Filter brand dan urutan terdekat sudah ditangani backend lewat
+        // query parameter.
+        if (selectedBrand !== ALL_BRANDS) {
+          params.set('brand', selectedBrand)
+        }
+
+        if (userLocation) {
+          params.set('latitude', String(userLocation.latitude))
+          params.set('longitude', String(userLocation.longitude))
+        }
+
         const response = await fetch(
-          'http://localhost:8080/api/merchants',
+          `http://localhost:8080/api/merchants?${params.toString()}`,
           { signal: controller.signal },
         )
 
@@ -122,11 +179,11 @@ function HomePage() {
           throw new Error('Gagal mengambil daftar pedagang.')
         }
 
-        const data: ApiMerchant[] = await response.json()
+        const payload: ApiMerchantsResponse = await response.json()
 
         const markerColors = ['#b45309', '#0f766e', '#be123c']
 
-        const mappedMerchants: Merchant[] = data
+        const mappedMerchants: Merchant[] = payload.data
           .filter(
             (merchant) =>
               merchant.latitude !== null &&
@@ -146,6 +203,7 @@ function HomePage() {
           }))
 
         setMerchants(mappedMerchants)
+        setMerchantsMeta(payload.meta)
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') {
           return
@@ -164,7 +222,7 @@ function HomePage() {
     fetchMerchants()
 
     return () => controller.abort()
-  }, [])
+  }, [currentPage, selectedBrand, userLocation])
 
   // Ambil daftar brand aktif dari backend.
   useEffect(() => {
@@ -205,31 +263,23 @@ function HomePage() {
     return () => controller.abort()
   }, [])
 
-  // Tampilkan hanya pedagang yang sedang berjualan.
-  const availableMerchants = useMemo(
-    () => merchants.filter((merchant) => merchant.isAvailable),
-    [merchants],
-  )
-
   const brandOptions = useMemo(() => {
     const counts = new Map<string, number>()
 
-    availableMerchants.forEach((merchant) => {
-      counts.set(
-        merchant.brand,
-        (counts.get(merchant.brand) ?? 0) + 1,
-      )
+    merchantsMeta?.brand_counts.forEach(({ brand_name, count }) => {
+      counts.set(brand_name, count)
     })
 
     return brands.map((brand) => ({
       brand: brand.name,
       count: counts.get(brand.name) ?? 0,
     }))
-  }, [availableMerchants, brands])
+  }, [brands, merchantsMeta])
 
-  // Hitung jarak dan urutkan dari yang terdekat saat GPS aktif.
+  // Jarak dihitung di sisi klien untuk label, sedangkan urutan pedagang
+  // sudah ditentukan backend (paling dekat lebih dulu saat GPS aktif).
   const merchantsWithDistance = useMemo(() => {
-    const items = availableMerchants.map((merchant) => {
+    return merchants.map((merchant) => {
       const distanceInKm = userLocation
         ? calculateDistance(
             userLocation.latitude,
@@ -248,25 +298,7 @@ function HomePage() {
             : formatDistance(distanceInKm),
       }
     })
-
-    if (userLocation) {
-      items.sort(
-        (a, b) =>
-          (a.distanceInKm ?? Infinity) -
-          (b.distanceInKm ?? Infinity),
-      )
-    }
-
-    return items
-  }, [availableMerchants, userLocation])
-
-  const filteredMerchants = useMemo(() => {
-    return merchantsWithDistance.filter(
-      (merchant) =>
-        selectedBrand === ALL_BRANDS ||
-        merchant.brand === selectedBrand,
-    )
-  }, [merchantsWithDistance, selectedBrand])
+  }, [merchants, userLocation])
 
   function handleGetLocation() {
     if (!navigator.geolocation) {
@@ -488,7 +520,7 @@ function HomePage() {
 
             <div className="mt-3">
               <MapView
-                merchants={filteredMerchants}
+                merchants={merchantsWithDistance}
                 selectedMerchantId={selectedMerchantId}
                 userLocation={userLocation}
               />
@@ -496,7 +528,7 @@ function HomePage() {
           </section>
 
           <section aria-labelledby="daftar-pedagang" className="min-w-0">
-            <div className="flex items-end justify-between gap-4 border-b border-line pb-3 sm:pb-4">
+            <div className="flex items-end justify-between gap-4 border-b border-line pb-3 sm:pb-3">
               <div>
                 <h2
                   id="daftar-pedagang"
@@ -513,7 +545,7 @@ function HomePage() {
               </div>
 
               <span className="shrink-0 text-xs tabular-nums text-muted sm:text-sm">
-                {filteredMerchants.length} pedagang
+                {merchantsMeta?.total ?? 0} pedagang
               </span>
             </div>
 
@@ -542,7 +574,7 @@ function HomePage() {
                   {merchantError}
                 </p>
               </div>
-            ) : filteredMerchants.length === 0 ? (
+            ) : merchantsWithDistance.length === 0 ? (
               <div className="border-b border-line py-8 text-center sm:py-12">
                 <p className="font-semibold text-ink">
                   Belum ada pedagang yang cocok
@@ -566,37 +598,30 @@ function HomePage() {
                 </button>
               </div>
             ) : (
-              <ul className="-mx-5 mt-4 flex snap-x snap-mandatory scroll-pl-5 gap-3 overflow-x-auto px-5 pb-1 sm:-mx-6 sm:scroll-pl-6 sm:px-6 lg:mx-0 lg:mt-0 lg:block lg:snap-none lg:overflow-visible lg:divide-y lg:divide-line lg:border-b lg:border-line lg:px-0 lg:pb-0">
-                {filteredMerchants.map((merchant) => {
+              <ul className="-mx-5 mt-5 flex snap-x snap-mandatory scroll-pl-5 gap-3 overflow-x-auto px-5 pb-1 sm:-mx-6 sm:scroll-pl-6 sm:px-6 lg:mx-0 lg:grid lg:snap-none lg:grid-cols-2 lg:overflow-visible lg:px-0 lg:pb-0">
+                {merchantsWithDistance.map((merchant) => {
                   const isSelected =
                     merchant.id === selectedMerchantId
 
                   return (
                     <li
                       key={merchant.id}
-                      className={`relative w-60 shrink-0 snap-start rounded-xl border transition-colors lg:w-auto lg:shrink lg:rounded-none lg:border-0 ${
+                      className={`w-60 shrink-0 snap-start rounded-xl border transition-colors lg:w-auto lg:shrink ${
                         isSelected
                           ? 'border-brand bg-brand-soft'
-                          : 'border-line bg-canvas lg:bg-transparent'
+                          : 'border-line bg-canvas'
                       }`}
                     >
-                      <span
-                        aria-hidden="true"
-                        className={`absolute inset-y-0 left-0 hidden w-0.5 bg-brand-strong transition-opacity duration-200 lg:block ${
-                          isSelected ? 'opacity-100' : 'opacity-0'
-                        }`}
-                      />
-
-                      <div className="p-4 lg:py-5 lg:pl-5 lg:pr-3">
+                      <div className="p-4">
                         <div className="flex items-start gap-3">
                           <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line lg:h-10 lg:w-10 ${
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line ${
                               isSelected ? 'bg-canvas' : 'bg-mist'
                             }`}
                           >
                             <Coffee
                               aria-hidden="true"
-                              className={`h-4 w-4 lg:h-5 lg:w-5 ${
+                              className={`h-4 w-4 ${
                                 isSelected
                                   ? 'text-brand-strong'
                                   : 'text-muted'
@@ -606,7 +631,7 @@ function HomePage() {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <h3 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm font-semibold text-ink lg:text-base">
+                            <h3 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm font-semibold text-ink">
                               {merchant.name}
 
                               {isSelected && (
@@ -617,7 +642,7 @@ function HomePage() {
                             </h3>
 
                             <p
-                              className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs lg:text-sm ${
+                              className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs ${
                                 isSelected
                                   ? 'text-ink'
                                   : 'text-muted'
@@ -644,7 +669,7 @@ function HomePage() {
                           </div>
                         </div>
 
-                        <div className="mt-3 flex gap-2 lg:mt-4">
+                        <div className="mt-3 flex gap-2">
                           <button
                             type="button"
                             onClick={() =>
@@ -663,10 +688,7 @@ function HomePage() {
                               className="h-4 w-4"
                               strokeWidth={1.75}
                             />
-                            <span className="lg:hidden">Lokasi</span>
-                            <span className="hidden lg:inline">
-                              Lihat lokasi
-                            </span>
+                            Lokasi
                           </button>
 
                           <button
@@ -689,10 +711,7 @@ function HomePage() {
                               className="h-4 w-4"
                               strokeWidth={1.75}
                             />
-                            <span className="lg:hidden">Rute</span>
-                            <span className="hidden lg:inline">
-                              Buka rute
-                            </span>
+                            Rute
                           </button>
                         </div>
                       </div>
@@ -700,6 +719,60 @@ function HomePage() {
                   )
                 })}
               </ul>
+            )}
+
+            {totalPages > 1 && (
+              <nav
+                aria-label="Navigasi halaman daftar pedagang"
+                className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4"
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPageState({
+                      brand: selectedBrand,
+                      page: currentPage - 1,
+                    })
+                  }
+                  disabled={currentPage === 1}
+                  aria-label="Halaman sebelumnya"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-canvas px-3.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <ChevronLeft
+                    aria-hidden="true"
+                    className="h-4 w-4"
+                    strokeWidth={1.75}
+                  />
+                  <span className="hidden sm:inline">Sebelumnya</span>
+                </button>
+
+                <p
+                  aria-live="polite"
+                  className="text-sm tabular-nums text-muted"
+                >
+                  Halaman {currentPage} dari {totalPages}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPageState({
+                      brand: selectedBrand,
+                      page: currentPage + 1,
+                    })
+                  }
+                  disabled={currentPage === totalPages}
+                  aria-label="Halaman berikutnya"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-canvas px-3.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="hidden sm:inline">Berikutnya</span>
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="h-4 w-4"
+                    strokeWidth={1.75}
+                  />
+                </button>
+              </nav>
             )}
           </section>
         </div>

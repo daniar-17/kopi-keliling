@@ -71,13 +71,14 @@
   line-height: 1.4;
 }
 
+/* Tombol +/− zoom dibuat lebih ringkas namun tetap nyaman disentuh. */
 .leaflet-control-zoom a,
 .leaflet-touch .leaflet-control-zoom-in,
 .leaflet-touch .leaflet-control-zoom-out {
-  width: 2.75rem !important;
-  height: 2.75rem !important;
-  line-height: 2.75rem !important;
-  font-size: 1.25rem !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  line-height: 2rem !important;
+  font-size: 1rem !important;
   color: var(--color-ink);
 }
 
