@@ -11,7 +11,7 @@ import {
   Navigation,
   RotateCcw,
 } from 'lucide-react'
-import MapView from '../components/MapView'
+import MapView, { resolveMarkerColor } from '../components/MapView'
 
 type UserLocation = {
   latitude: number
@@ -22,6 +22,11 @@ const ALL_BRANDS = 'Semua brand'
 
 // Batas jumlah pedagang per halaman pada grid 2 kolom tampilan desktop.
 const MERCHANTS_PER_PAGE = 6
+
+// Backend mengikuti hostname tempat halaman dibuka, supaya aplikasi tetap
+// berjalan saat diakses dari perangkat lain (misalnya HP) di jaringan yang
+// sama, bukan hanya dari localhost.
+const API_BASE_URL = `http://${window.location.hostname}:8080`
 
 type Brand = {
   id: number
@@ -35,6 +40,8 @@ type ApiMerchant = {
   merchant_name: string
   brand_id: number
   brand_name: string
+  logo_url: string | null
+  marker_colors: string | null
   phone: string | null
   latitude: number | null
   longitude: number | null
@@ -62,6 +69,7 @@ type Merchant = {
   id: number
   name: string
   brand: string
+  logoUrl: string | null
   markerColor: string
   latitude: number
   longitude: number
@@ -171,7 +179,7 @@ function HomePage() {
         }
 
         const response = await fetch(
-          `http://localhost:8080/api/merchants?${params.toString()}`,
+          `${API_BASE_URL}/api/merchants?${params.toString()}`,
           { signal: controller.signal },
         )
 
@@ -180,8 +188,6 @@ function HomePage() {
         }
 
         const payload: ApiMerchantsResponse = await response.json()
-
-        const markerColors = ['#b45309', '#0f766e', '#be123c']
 
         const mappedMerchants: Merchant[] = payload.data
           .filter(
@@ -193,10 +199,10 @@ function HomePage() {
             id: merchant.id,
             name: merchant.merchant_name,
             brand: merchant.brand_name,
-            markerColor:
-              markerColors[
-                (merchant.brand_id - 1) % markerColors.length
-              ],
+            logoUrl: merchant.logo_url,
+            markerColor: resolveMarkerColor(
+              merchant.marker_colors ?? undefined,
+            ),
             latitude: merchant.latitude!,
             longitude: merchant.longitude!,
             isAvailable: merchant.is_available,
@@ -233,10 +239,9 @@ function HomePage() {
         setIsLoadingBrands(true)
         setBrandError('')
 
-        const response = await fetch(
-          'http://localhost:8080/api/brands',
-          { signal: controller.signal },
-        )
+        const response = await fetch(`${API_BASE_URL}/api/brands`, {
+          signal: controller.signal,
+        })
 
         if (!response.ok) {
           throw new Error('Gagal mengambil daftar brand.')
@@ -404,7 +409,7 @@ function HomePage() {
             href="/"
             className="font-display text-xl font-bold tracking-tight text-ink"
           >
-            Kopi<span className="text-brand-strong">Keliling</span>
+            CarKo<span className="text-brand-strong">Ling</span>
           </a>
 
           <p className="hidden text-sm text-muted sm:block">
@@ -414,7 +419,7 @@ function HomePage() {
       </header>
 
       <div className="mx-auto max-w-6xl px-5 pb-8 pt-4 sm:px-6 sm:pb-12 sm:pt-6">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)] lg:gap-10">
+        <div className="grid grid-cols-1 gap-5 sm:gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)] lg:gap-10">
           <section
             ref={mapSectionRef}
             aria-label="Peta lokasi pedagang"
@@ -495,9 +500,9 @@ function HomePage() {
 
                   {!isLoadingBrands &&
                     !brandError &&
-                    brandOptions.map(({ brand, count }) => (
+                    brandOptions.map(({ brand }) => (
                       <option key={brand} value={brand}>
-                        {brand} ({count})
+                        {brand}
                       </option>
                     ))}
                 </select>
@@ -530,14 +535,14 @@ function HomePage() {
           <section aria-labelledby="daftar-pedagang" className="min-w-0">
             <div className="flex items-end justify-between gap-4 border-b border-line pb-3 sm:pb-3">
               <div>
-                <h2
+                <h3
                   id="daftar-pedagang"
-                  className="font-display text-xl font-semibold tracking-tight text-ink sm:text-[1.75rem]"
+                  className="font-display text-base font-semibold tracking-tight text-ink sm:text-[1.75rem]"
                 >
                   Pedagang di sekitar
-                </h2>
+                </h3>
 
-                <p className="mt-1 text-sm text-muted">
+                <p className="text-xs text-muted">
                   {userLocation
                     ? 'Diurutkan dari yang paling dekat.'
                     : 'Aktifkan lokasi untuk melihat jarak.'}
@@ -615,19 +620,29 @@ function HomePage() {
                       <div className="p-4">
                         <div className="flex items-start gap-3">
                           <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line ${
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line ${
                               isSelected ? 'bg-canvas' : 'bg-mist'
                             }`}
                           >
-                            <Coffee
-                              aria-hidden="true"
-                              className={`h-4 w-4 ${
-                                isSelected
-                                  ? 'text-brand-strong'
-                                  : 'text-muted'
-                              }`}
-                              strokeWidth={1.75}
-                            />
+                            {merchant.logoUrl ? (
+                              <img
+                                src={merchant.logoUrl}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <Coffee
+                                aria-hidden="true"
+                                className={`h-4 w-4 ${
+                                  isSelected
+                                    ? 'text-brand-strong'
+                                    : 'text-muted'
+                                }`}
+                                strokeWidth={1.75}
+                              />
+                            )}
                           </div>
 
                           <div className="min-w-0 flex-1">

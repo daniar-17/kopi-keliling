@@ -8,12 +8,29 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+// Pola tautan berbagi Google Drive, contoh:
+// https://drive.google.com/file/d/FILE_ID/view?usp=drive_link
+var driveFilePattern = regexp.MustCompile(
+	`^https://drive\.google\.com/file/d/([A-Za-z0-9_-]+)/`,
+)
+
+// resolveLogoURL mengubah tautan berbagi Google Drive menjadi URL gambar
+// langsung yang bisa dirender <img>. Format lain dikembalikan apa adanya.
+func resolveLogoURL(raw string) string {
+	if matches := driveFilePattern.FindStringSubmatch(raw); matches != nil {
+		return "https://lh3.googleusercontent.com/d/" + matches[1] + "=w256"
+	}
+
+	return raw
+}
 
 var db *sql.DB
 
@@ -23,10 +40,11 @@ type HealthResponse struct {
 }
 
 type Brand struct {
-	ID       int64   `json:"id"`
-	Name     string  `json:"name"`
-	LogoURL  *string `json:"logo_url"`
-	IsActive bool    `json:"is_active"`
+	ID           int64   `json:"id"`
+	Name         string  `json:"name"`
+	LogoURL      *string `json:"logo_url"`
+	MarkerColors *string `json:"marker_colors"`
+	IsActive     bool    `json:"is_active"`
 }
 
 type Merchant struct {
@@ -34,6 +52,8 @@ type Merchant struct {
 	MerchantName string   `json:"merchant_name"`
 	BrandID      int64    `json:"brand_id"`
 	BrandName    string   `json:"brand_name"`
+	LogoURL      *string  `json:"logo_url"`
+	MarkerColor  *string  `json:"marker_colors"`
 	Phone        *string  `json:"phone"`
 	Latitude     *float64 `json:"latitude"`
 	Longitude    *float64 `json:"longitude"`
@@ -114,7 +134,13 @@ func main() {
 
 		origin := r.Header.Get("Origin")
 
-		if allowedOrigins[origin] {
+		// Untuk mode pengembangan, origin apa pun di port 5173 boleh
+		// mengakses API, supaya HP di jaringan yang sama yang membuka
+		// http://<IP-komputer>:5173 juga diizinkan.
+		allowedOrigin :=
+			allowedOrigins[origin] || strings.HasSuffix(origin, ":5173")
+
+		if allowedOrigin {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 			w.Header().Set(
@@ -149,7 +175,7 @@ func main() {
 
 func getBrands(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.QueryContext(r.Context(), `
-		SELECT id, name, logo_url, is_active
+		SELECT id, name, logo_url, marker_colors, is_active
 		FROM brands
 		WHERE is_active = TRUE
 		ORDER BY name ASC
@@ -168,11 +194,13 @@ func getBrands(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var brand Brand
 		var logoURL sql.NullString
+		var markerColors sql.NullString
 
 		if err := rows.Scan(
 			&brand.ID,
 			&brand.Name,
 			&logoURL,
+			&markerColors,
 			&brand.IsActive,
 		); err != nil {
 			log.Printf("Gagal membaca data brand: %v", err)
@@ -183,7 +211,12 @@ func getBrands(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if logoURL.Valid {
-			brand.LogoURL = &logoURL.String
+			resolved := resolveLogoURL(logoURL.String)
+			brand.LogoURL = &resolved
+		}
+
+		if markerColors.Valid {
+			brand.MarkerColors = &markerColors.String
 		}
 
 		brands = append(brands, brand)
@@ -314,6 +347,8 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 				m.merchant_name,
 				b.id AS brand_id,
 				b.name AS brand_name,
+				b.logo_url,
+				b.marker_colors,
 				m.phone,
 				ST_Y(m.location::geometry) AS latitude,
 				ST_X(m.location::geometry) AS longitude,
@@ -340,6 +375,8 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var merchant Merchant
+		var logoURL sql.NullString
+		var markerColors sql.NullString
 		var phone sql.NullString
 		var latitude sql.NullFloat64
 		var longitude sql.NullFloat64
@@ -349,6 +386,8 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 			&merchant.MerchantName,
 			&merchant.BrandID,
 			&merchant.BrandName,
+			&logoURL,
+			&markerColors,
 			&phone,
 			&latitude,
 			&longitude,
@@ -359,6 +398,15 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 				"error": "Gagal membaca data pedagang",
 			})
 			return
+		}
+
+		if logoURL.Valid && logoURL.String != "" {
+			resolved := resolveLogoURL(logoURL.String)
+			merchant.LogoURL = &resolved
+		}
+
+		if markerColors.Valid && markerColors.String != "" {
+			merchant.MarkerColor = &markerColors.String
 		}
 
 		if phone.Valid {

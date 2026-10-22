@@ -28,7 +28,9 @@ const DEFAULT_MARKER_COLOR = '#92400e'
 const HEX_COLOR_PATTERN =
   /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i
 
-function resolveMarkerColor(markerColor?: string) {
+// Memilih warna marker yang valid; selain kode hex atau kosong memakai
+// warna default. Diekspor karena juga dipakai saat memetakan data API.
+export function resolveMarkerColor(markerColor?: string) {
   const value = markerColor?.trim()
 
   if (value && HEX_COLOR_PATTERN.test(value)) {
@@ -245,9 +247,9 @@ function MapView({
 
     // Langsung arahkan peta ke lokasi pengguna yang baru didapat.
     if (prefersReducedMotion()) {
-      map.setView([latitude, longitude], 16)
+      map.setView([latitude, longitude], 15)
     } else {
-      map.flyTo([latitude, longitude], 16, { duration: 0.9 })
+      map.flyTo([latitude, longitude], 15, { duration: 0.9 })
     }
   }, [userLocation])
 
@@ -284,64 +286,14 @@ function MapView({
     })
   }, [selectedMerchantId, merchants])
 
-  const legendColors = Array.from(
-    new Set(
-      merchants.map((merchant) =>
-        resolveMarkerColor(merchant.markerColor),
-      ),
-    ),
-  ).slice(0, 4)
-
   return (
     <div className="overflow-hidden rounded-xl border border-line bg-canvas">
       <div
         ref={mapContainerRef}
         role="region"
         aria-label="Peta pedagang kopi di sekitar"
-        className="h-64 w-full bg-mist sm:h-[420px] lg:h-[520px]"
+        className="h-[50vh] min-h-[300px] w-full bg-mist sm:h-[420px] lg:h-[520px]"
       />
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line px-3 py-2.5 text-xs text-muted sm:gap-x-5 sm:gap-y-2 sm:px-4 sm:py-3">
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="flex items-center -space-x-1"
-          >
-            {(legendColors.length > 0
-              ? legendColors
-              : [DEFAULT_MARKER_COLOR]
-            ).map((color) => (
-              <span
-                key={color}
-                className="h-2.5 w-2.5 rounded-full ring-1 ring-canvas"
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </span>
-          Pedagang
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="h-2.5 w-2.5 rounded-full bg-brand"
-          />
-          Lokasi kamu
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-soft ring-2 ring-brand"
-          >
-            <Coffee
-              className="h-2.5 w-2.5 text-brand-strong"
-              strokeWidth={2}
-            />
-          </span>
-          Pedagang dipilih
-        </div>
-      </div>
     </div>
   )
 }
