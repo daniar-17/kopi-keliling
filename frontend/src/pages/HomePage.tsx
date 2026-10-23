@@ -12,6 +12,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import MapView, { resolveMarkerColor } from '../components/MapView'
+import { formatRelativeTime } from '../lib/format'
 
 type UserLocation = {
   latitude: number
@@ -46,6 +47,7 @@ type ApiMerchant = {
   latitude: number | null
   longitude: number | null
   is_available: boolean
+  location_updated_at: string | null
 }
 
 // Metadata pagination yang dikirim backend bersama data pedagang.
@@ -74,6 +76,8 @@ type Merchant = {
   latitude: number
   longitude: number
   isAvailable: boolean
+  // Label seperti "5 mnt lalu" yang memperlihatkan kesegaran titik.
+  updatedLabel: string | null
 }
 
 // Menghitung jarak dua koordinat menggunakan rumus Haversine.
@@ -113,6 +117,42 @@ function formatDistance(distanceInKm: number): string {
     maximumFractionDigits: 1,
     minimumFractionDigits: 1,
   })} km`
+}
+
+// Logo brand dengan pengaman: kalau gambar gagal dimuat (misalnya
+// berbagi Drive berubah atau diblokir ekstensi), ikon kopi yang tampil
+// ali-alih lambang gambar rusak.
+function BrandLogo({
+  src,
+  isHighlighted,
+}: {
+  src: string | null
+  isHighlighted: boolean
+}) {
+  const [hasFailed, setHasFailed] = useState(false)
+
+  if (!src || hasFailed) {
+    return (
+      <Coffee
+        aria-hidden="true"
+        className={`h-4 w-4 ${
+          isHighlighted ? 'text-brand-strong' : 'text-muted'
+        }`}
+        strokeWidth={1.75}
+      />
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      onError={() => setHasFailed(true)}
+      className="h-full w-full object-cover"
+    />
+  )
 }
 
 function HomePage() {
@@ -206,6 +246,10 @@ function HomePage() {
             latitude: merchant.latitude!,
             longitude: merchant.longitude!,
             isAvailable: merchant.is_available,
+            updatedLabel: formatRelativeTime(
+              merchant.location_updated_at,
+              Date.now(),
+            ),
           }))
 
         setMerchants(mappedMerchants)
@@ -354,7 +398,9 @@ function HomePage() {
   }
 
   // Rute dimulai dari GPS pengguna bila sudah aktif, supaya titik awal
-  // tidak mengikuti lokasi default Google Maps.
+  // tidak mengikuti lokasi default Google Maps. Tanpa dir_action=navigate
+  // supaya Maps hanya menampilkan rute dan tombol "Mulai", bukan langsung
+  // otow: pengguna tetap yang memutuskan.
   function handleNavigateToMerchant(
     latitude: number,
     longitude: number,
@@ -363,7 +409,6 @@ function HomePage() {
       api: '1',
       destination: `${latitude},${longitude}`,
       travelmode: 'driving',
-      dir_action: 'navigate',
     })
 
     if (userLocation) {
@@ -405,16 +450,25 @@ function HomePage() {
     <main className="min-h-screen bg-canvas text-ink">
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-6">
-          <a
-            href="/"
-            className="font-display text-xl font-bold tracking-tight text-ink"
-          >
-            CarKo<span className="text-brand-strong">Ling</span>
-          </a>
+          <div className="flex flex-col gap-0.5">
+            <a
+              href="/"
+              className="w-fit font-display text-xl font-bold tracking-tight text-ink"
+            >
+              CarKo<span className="text-brand-strong">Ling</span>
+            </a>
 
-          <p className="hidden text-sm text-muted sm:block">
-            Cari Kopi Keliling
-          </p>
+            <span className="text-xs text-muted">
+              Cari Kopi Keliling
+            </span>
+          </div>
+
+          <a
+            href="#/pedagang"
+            className="inline-flex h-10 items-center whitespace-nowrap rounded-lg border border-line bg-canvas px-2.5 text-xs font-semibold text-ink transition-colors hover:border-brand hover:text-brand-strong sm:h-11 sm:px-3 sm:text-sm"
+          >
+            Area Pedagang
+          </a>
         </div>
       </header>
 
@@ -430,18 +484,18 @@ function HomePage() {
                 type="button"
                 onClick={handleGetLocation}
                 disabled={isLocating}
-                className="inline-flex h-12 items-center justify-center gap-3 rounded-lg bg-brand-strong text-sm font-semibold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60 sm:px-5"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-strong text-xs font-semibold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:gap-3 sm:px-5 sm:text-sm"
               >
                 {isLocating ? (
                   <LoaderCircle
                     aria-hidden="true"
-                    className="h-5 w-5 shrink-0 animate-spin"
+                    className="h-4 w-4 shrink-0 animate-spin sm:h-5 sm:w-5"
                     strokeWidth={2}
                   />
                 ) : (
                   <LocateFixed
                     aria-hidden="true"
-                    className="h-5 w-5 shrink-0"
+                    className="h-4 w-4 shrink-0 sm:h-5 sm:w-5"
                     strokeWidth={1.75}
                   />
                 )}
@@ -482,7 +536,7 @@ function HomePage() {
                     setSelectedBrand(event.target.value)
                     setSelectedMerchantId(null)
                   }}
-                  className="h-12 w-full appearance-none rounded-lg border border-line bg-canvas pl-4 pr-10 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  className="h-10 w-full appearance-none rounded-lg border border-line bg-canvas pl-3.5 pr-9 text-xs text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 sm:h-12 sm:pl-4 sm:pr-10 sm:text-sm"
                 >
                   <option value={ALL_BRANDS}>{ALL_BRANDS}</option>
 
@@ -537,19 +591,19 @@ function HomePage() {
               <div>
                 <h3
                   id="daftar-pedagang"
-                  className="font-display text-base font-semibold tracking-tight text-ink sm:text-[1.75rem]"
+                  className="font-display text-sm font-semibold tracking-tight text-ink sm:text-[1.75rem]"
                 >
                   Pedagang di sekitar
                 </h3>
 
-                <p className="text-xs text-muted">
+                <p className="hidden text-xs text-muted sm:block">
                   {userLocation
                     ? 'Diurutkan dari yang paling dekat.'
                     : 'Aktifkan lokasi untuk melihat jarak.'}
                 </p>
               </div>
 
-              <span className="shrink-0 text-xs tabular-nums text-muted sm:text-sm">
+              <span className="hidden shrink-0 text-xs tabular-nums text-muted sm:block sm:text-sm">
                 {merchantsMeta?.total ?? 0} pedagang
               </span>
             </div>
@@ -624,25 +678,10 @@ function HomePage() {
                               isSelected ? 'bg-canvas' : 'bg-mist'
                             }`}
                           >
-                            {merchant.logoUrl ? (
-                              <img
-                                src={merchant.logoUrl}
-                                alt=""
-                                aria-hidden="true"
-                                loading="lazy"
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <Coffee
-                                aria-hidden="true"
-                                className={`h-4 w-4 ${
-                                  isSelected
-                                    ? 'text-brand-strong'
-                                    : 'text-muted'
-                                }`}
-                                strokeWidth={1.75}
-                              />
-                            )}
+                            <BrandLogo
+                              src={merchant.logoUrl}
+                              isHighlighted={isSelected}
+                            />
                           </div>
 
                           <div className="min-w-0 flex-1">
@@ -681,6 +720,12 @@ function HomePage() {
                                 {merchant.distanceLabel}
                               </span>
                             </p>
+
+                            {merchant.updatedLabel && (
+                              <p className="mt-1 text-xs tabular-nums text-muted">
+                                Titik diperbarui {merchant.updatedLabel}
+                              </p>
+                            )}
                           </div>
                         </div>
 

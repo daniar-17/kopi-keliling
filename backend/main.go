@@ -58,6 +58,8 @@ type Merchant struct {
 	Latitude     *float64 `json:"latitude"`
 	Longitude    *float64 `json:"longitude"`
 	IsAvailable  bool     `json:"is_available"`
+	// Waktu terakhir titik diperbarui; konsumen bisa menilai kesegarannya.
+	LocationUpdatedAt *time.Time `json:"location_updated_at"`
 }
 
 // Batas jumlah pedagang per halaman.
@@ -108,6 +110,10 @@ func main() {
 
 	log.Println("Berhasil terhubung ke PostgreSQL")
 
+	// File .env bersifat opsional: ada yang terbaca, tidak ada yang
+	// melucu. Variabelenvironment sistem tetap lebih unggul.
+	loadDotEnv("backend/.env", ".env")
+
 	// Router HTTP.
 	mux := http.NewServeMux()
 
@@ -122,8 +128,18 @@ func main() {
 	// Mengambil daftar brand aktif.
 	mux.HandleFunc("GET /api/brands", getBrands)
 
+	// Gambar logo brand dilayani dari backend (bukan Google langsung).
+	mux.HandleFunc("GET /api/brands/{id}/logo", getBrandLogo)
+
 	// Mengambil daftar pedagang.
 	mux.HandleFunc("GET /api/merchants", getMerchants)
+
+	// Bagian pedagang: masuk lewat Google dan kelola titik berjualan.
+	mux.HandleFunc("POST /api/auth/google", postAuthGoogle)
+	mux.HandleFunc("GET /api/auth/me", getAuthMe)
+	mux.HandleFunc("POST /api/merchants/me/profile", postMerchantProfile)
+	mux.HandleFunc("POST /api/merchants/me/location", postMerchantLocation)
+	mux.HandleFunc("DELETE /api/merchants/me/location", deleteMerchantLocation)
 
 	// CORS untuk frontend Vite.
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -210,8 +226,9 @@ func getBrands(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if logoURL.Valid {
-			resolved := resolveLogoURL(logoURL.String)
+		if logoURL.Valid && logoURL.String != "" {
+			// Alamat gambar diarahkan ke proxy logo di backend ini.
+			resolved := proxyLogoURL(r, brand.ID)
 			brand.LogoURL = &resolved
 		}
 
@@ -291,12 +308,19 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Filter dasar mengikuti kebutuhan aplikasi: hanya pedagang dari
-	// pengguna aktif, brand aktif, sedang berjualan, dan punya koordinat
-	// untuk ditampilkan di peta.
-	where := `u.is_active = TRUE
+	// pengguna aktif, brand aktif, sedang berjualan, punya koordinat, dan
+	// titiknya masih segar supaya pedagang yang lupa menutup aplikasi
+	// otomatis terlepas dari peta.
+	freshnessWindow := fmt.Sprintf(
+		"INTERVAL '%d minutes'",
+		int(availabilityTTL.Minutes()),
+	)
+
+	where := fmt.Sprintf(`u.is_active = TRUE
 		  AND b.is_active = TRUE
 		  AND m.is_available = TRUE
-		  AND m.location IS NOT NULL`
+		  AND m.location IS NOT NULL
+		  AND m.location_updated_at > NOW() - %s`, freshnessWindow)
 
 	args := []any{}
 
@@ -352,7 +376,8 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 				m.phone,
 				ST_Y(m.location::geometry) AS latitude,
 				ST_X(m.location::geometry) AS longitude,
-				m.is_available
+				m.is_available,
+				m.location_updated_at
 			FROM merchants m
 			JOIN users u ON u.id = m.user_id
 			JOIN brands b ON b.id = m.brand_id
@@ -380,6 +405,7 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 		var phone sql.NullString
 		var latitude sql.NullFloat64
 		var longitude sql.NullFloat64
+		var locationUpdatedAt sql.NullTime
 
 		if err := rows.Scan(
 			&merchant.ID,
@@ -392,6 +418,7 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 			&latitude,
 			&longitude,
 			&merchant.IsAvailable,
+			&locationUpdatedAt,
 		); err != nil {
 			log.Printf("Gagal membaca data pedagang: %v", err)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{
@@ -401,7 +428,7 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if logoURL.Valid && logoURL.String != "" {
-			resolved := resolveLogoURL(logoURL.String)
+			resolved := proxyLogoURL(r, merchant.BrandID)
 			merchant.LogoURL = &resolved
 		}
 
@@ -421,6 +448,11 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 			merchant.Longitude = &longitude.Float64
 		}
 
+		if locationUpdatedAt.Valid {
+			updatedAt := locationUpdatedAt.Time
+			merchant.LocationUpdatedAt = &updatedAt
+		}
+
 		merchants = append(merchants, merchant)
 	}
 
@@ -435,7 +467,7 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 	// Jumlah pedagang aktif per brand untuk opsi filter di frontend.
 	brandCounts := make([]BrandCount, 0)
 
-	countRows, err := db.QueryContext(r.Context(), `
+	countRows, err := db.QueryContext(r.Context(), fmt.Sprintf(`
 		SELECT b.name, COUNT(*)
 		FROM merchants m
 		JOIN users u ON u.id = m.user_id
@@ -444,9 +476,10 @@ func getMerchants(w http.ResponseWriter, r *http.Request) {
 		  AND b.is_active = TRUE
 		  AND m.is_available = TRUE
 		  AND m.location IS NOT NULL
+		  AND m.location_updated_at > NOW() - %s
 		GROUP BY b.name
 		ORDER BY b.name ASC
-	`)
+	`, freshnessWindow))
 	if err != nil {
 		log.Printf("Gagal menghitung jumlah pedagang per brand: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{
