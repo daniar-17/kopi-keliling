@@ -5,20 +5,31 @@
   --color-brand: #0c9b62;
   --color-brand-strong: #077a4d;
   --color-brand-deep: #06663f;
-  --color-brand-soft: #e9f6f0;
+  --color-brand-soft: #d8f1e4;
   --color-canvas: #ffffff;
-  --color-mist: #f5f7f6;
-  --color-ink: #202923;
-  --color-muted: #6b756f;
-  --color-line: #e5eae7;
+  --color-mist: #f2f2f2;
+  --color-ink: #111111;
+  --color-muted: #4b4b45;
+  --color-line: #111111;
+  --color-accent: #ffc93c;
+  --color-accent-soft: #ffe58a;
+  --color-danger: #b00020;
 
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Plus Jakarta Sans", system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Archivo Black", "Plus Jakarta Sans", system-ui,
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --shadow-brutal-sm: 2px 2px 0 0 #111111;
+  --shadow-brutal: 4px 4px 0 0 #111111;
+  --shadow-brutal-lg: 6px 6px 0 0 #111111;
 }
 
 @layer base {
+  html {
+    background-color: var(--color-canvas);
+  }
+
   body {
     margin: 0;
     min-width: 320px;
@@ -34,23 +45,111 @@
   }
 
   ::selection {
-    background-color: var(--color-brand);
-    color: #ffffff;
+    background-color: var(--color-accent);
+    color: var(--color-ink);
   }
 
+  /* Penanda fokus memakai tinta, bukan aksen, supaya tetap 3:1 di atas putih
+     maupun hijau. */
   :focus-visible {
-    outline: 2px solid var(--color-brand-strong);
-    outline-offset: 2px;
+    outline: 3px solid var(--color-ink);
+    outline-offset: 3px;
   }
 
   button,
   input,
-  select {
+  select,
+  textarea {
     font: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-muted);
+    opacity: 1;
   }
 }
 
-/* Penyesuaian kecil agar kontrol peta menyatu dengan halaman. */
+@layer components {
+  /* Elemen terasa fisik: naik saat disentuh kursor, turun saat ditekan. */
+  .brutal-press {
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease,
+      background-color 120ms ease;
+  }
+
+  .brutal-press:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 0 #111111;
+  }
+
+  .brutal-press:active {
+    transform: translate(0, 0);
+    box-shadow: 0 0 0 0 #111111;
+  }
+
+  .brutal-press-lg {
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease,
+      background-color 120ms ease;
+  }
+
+  .brutal-press-lg:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 0 #111111;
+  }
+
+  .brutal-press-lg:active {
+    transform: translate(0, 0);
+    box-shadow: 4px 4px 0 0 #111111;
+  }
+
+  .brutal-press:disabled,
+  .brutal-press-lg:disabled {
+    cursor: not-allowed;
+  }
+
+  .brutal-press:disabled:hover,
+  .brutal-press-lg:disabled:hover {
+    transform: none;
+    box-shadow: 2px 2px 0 0 #111111;
+  }
+
+  .brutal-press:disabled:active,
+  .brutal-press-lg:disabled:active {
+    transform: none;
+  }
+
+  .brutal-input {
+    border: 2px solid #111111;
+    border-radius: 10px;
+    background-color: #ffffff;
+    color: #111111;
+  }
+
+  .brutal-input:focus {
+    outline: 3px solid #111111;
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brutal-press,
+    .brutal-press-lg {
+      transition: none;
+    }
+
+    .brutal-press:hover,
+    .brutal-press:active,
+    .brutal-press-lg:hover,
+    .brutal-press-lg:active {
+      transform: none;
+    }
+  }
+}
+
+/* Penyesuaian peta agar menyatu dengan bahasa visual halaman. */
 .leaflet-container {
   font-family: var(--font-sans);
   background: var(--color-mist);
@@ -58,9 +157,15 @@
 
 .leaflet-popup-content-wrapper {
   min-width: 17rem;
-  border: 1px solid var(--color-line);
-  border-radius: 0.75rem;
-  box-shadow: 0 6px 20px rgba(32, 41, 35, 0.12);
+  border: 2px solid var(--color-ink);
+  border-radius: 12px;
+  background: var(--color-canvas);
+  box-shadow: 6px 6px 0 0 var(--color-ink);
+}
+
+/* Segitiga penunjuk popup disembunyikan; kotak sudah cukup jelas. */
+.leaflet-popup-tip {
+  display: none;
 }
 
 .leaflet-popup-content {
@@ -71,28 +176,44 @@
   line-height: 1.4;
 }
 
-/* Tombol +/− zoom dibuat lebih ringkas namun tetap nyaman disentuh. */
-.leaflet-control-zoom a,
-.leaflet-touch .leaflet-control-zoom-in,
-.leaflet-touch .leaflet-control-zoom-out {
-  width: 2rem !important;
-  height: 2rem !important;
-  line-height: 2rem !important;
-  font-size: 1rem !important;
-  color: var(--color-ink);
-}
-
-/* Tutup popup dan kontrol zoom tetap nyaman disentuh di layar kecil. */
 .leaflet-popup-close-button {
   width: 2.75rem !important;
   height: 2.75rem !important;
   padding: 0 !important;
-  color: var(--color-muted) !important;
+  color: var(--color-ink) !important;
   font-size: 1.25rem !important;
+  font-weight: 700 !important;
   line-height: 2.75rem !important;
 }
 
+/* Kontrol zoom dibuat kotak dengan bayangan keras. */
+.leaflet-control-zoom {
+  border: 2px solid var(--color-ink) !important;
+  border-radius: 10px !important;
+  box-shadow: 2px 2px 0 0 var(--color-ink) !important;
+  overflow: hidden;
+}
+
+.leaflet-control-zoom a,
+.leaflet-touch .leaflet-control-zoom-in,
+.leaflet-touch .leaflet-control-zoom-out {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  border-radius: 0 !important;
+  background: var(--color-canvas) !important;
+  color: var(--color-ink) !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  line-height: 2.75rem !important;
+}
+
+.leaflet-control-zoom a + a {
+  border-top: 2px solid var(--color-ink) !important;
+}
+
 .leaflet-control-attribution {
+  background: var(--color-canvas) !important;
+  color: var(--color-muted) !important;
   font-size: 10px;
 }
 

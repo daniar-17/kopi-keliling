@@ -564,9 +564,9 @@ function MerchantPage() {
       <div role="status" aria-live="polite" className="py-12 text-center">
         <span
           aria-hidden="true"
-          className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-line border-t-brand"
+          className="inline-block h-6 w-6 animate-spin border-[3px] border-ink border-t-brand"
         />
-        <p className="mt-3 text-sm text-muted">Memeriksa sesi...</p>
+        <p className="mt-3 text-sm font-medium text-muted">Memeriksa sesi...</p>
       </div>
     </MerchantPageShell>
   }
@@ -574,8 +574,8 @@ function MerchantPage() {
   if (view === 'login') {
     return (
       <MerchantPageShell>
-        <div className="rounded-xl border border-line bg-canvas p-6 sm:p-8">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
+        <div className="rounded-2xl border-2 border-ink bg-canvas p-6 shadow-brutal sm:p-8">
+          <h1 className="font-display text-2xl leading-tight tracking-tight text-ink sm:text-3xl">
             Jualan, titikmu di peta
           </h1>
 
@@ -586,7 +586,7 @@ function MerchantPage() {
 
           <div className="mt-6">
             {!googleClientId ? (
-              <p className="rounded-lg bg-mist p-4 text-sm leading-relaxed text-ink">
+              <p className="rounded-xl border-2 border-ink bg-mist p-4 text-sm leading-relaxed text-ink">
                 ID klien Google belum disetel. Atur{' '}
                 <code className="font-mono text-xs">VITE_GOOGLE_CLIENT_ID</code>,
                 lalu muat ulang halaman.
@@ -605,8 +605,8 @@ function MerchantPage() {
   if (view === 'onboarding') {
     return (
       <MerchantPageShell>
-        <div className="rounded-xl border border-line bg-canvas p-6 sm:p-8">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
+        <div className="rounded-2xl border-2 border-ink bg-canvas p-6 shadow-brutal sm:p-8">
+          <h1 className="font-display text-2xl leading-tight tracking-tight text-ink sm:text-3xl">
             Lengkapi toko kamu
           </h1>
 
@@ -619,7 +619,7 @@ function MerchantPage() {
             onSubmit={handleSaveProfile}
           >
             <div className="grid gap-1.5">
-              <label htmlFor="merchant-name" className="text-sm font-medium text-ink">
+              <label htmlFor="merchant-name" className="text-sm font-bold text-ink">
                 Nama toko
               </label>
 
@@ -629,12 +629,12 @@ function MerchantPage() {
                 onChange={(event) => setFormName(event.target.value)}
                 placeholder="Kopi Keliling - Pak Asep"
                 maxLength={150}
-                className="h-12 rounded-lg border border-line bg-canvas px-4 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                className="brutal-input h-12 w-full px-4 text-sm"
               />
             </div>
 
             <div className="grid gap-1.5">
-              <label htmlFor="merchant-phone" className="text-sm font-medium text-ink">
+              <label htmlFor="merchant-phone" className="text-sm font-bold text-ink">
                 Nomor WA atau HP{' '}
                 <span className="font-normal text-muted">(opsional)</span>
               </label>
@@ -646,12 +646,12 @@ function MerchantPage() {
                 inputMode="tel"
                 maxLength={30}
                 placeholder="0812xxxxxxxx"
-                className="h-12 rounded-lg border border-line bg-canvas px-4 text-sm text-ink placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                className="brutal-input h-12 w-full px-4 text-sm"
               />
             </div>
 
             <div className="grid gap-1.5">
-              <label htmlFor="merchant-brand" className="text-sm font-medium text-ink">
+              <label htmlFor="merchant-brand" className="text-sm font-bold text-ink">
                 Brand kopi
               </label>
 
@@ -660,7 +660,7 @@ function MerchantPage() {
                   id="merchant-brand"
                   value={formBrandId}
                   onChange={(event) => setFormBrandId(event.target.value)}
-                  className="h-12 w-full appearance-none rounded-lg border border-line bg-canvas pl-4 pr-10 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 invalid:text-muted"
+                  className="brutal-input h-12 w-full appearance-none pl-4 pr-10 text-sm invalid:text-muted"
                 >
                   <option value="" disabled>
                     {isLoadingBrands ? 'Memuat brand...' : 'Pilih brand'}
@@ -675,20 +675,20 @@ function MerchantPage() {
 
                 <ChevronDown
                   aria-hidden="true"
-                  className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
-                  strokeWidth={1.75}
+                  className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink"
+                  strokeWidth={2}
                 />
               </div>
 
               {brandError && (
-                <p className="text-xs leading-relaxed text-ink">{brandError}</p>
+                <p className="text-xs font-medium leading-relaxed text-danger">{brandError}</p>
               )}
             </div>
 
             <button
               type="submit"
               disabled={isSavingProfile || isLoadingBrands}
-              className="inline-flex h-12 items-center justify-center gap-3 rounded-lg bg-brand-strong text-sm font-semibold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60"
+              className="brutal-press inline-flex h-12 items-center justify-center gap-3 rounded-[10px] border-2 border-ink bg-brand text-sm font-bold text-ink shadow-brutal-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSavingProfile && (
                 <LoaderCircle
@@ -731,7 +731,7 @@ function MerchantPage() {
   return (
     <MerchantPageShell>
       <div className="grid gap-5">
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-line bg-canvas p-4">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border-2 border-ink bg-canvas p-4 shadow-brutal">
           <div className="flex min-w-0 items-center gap-3">
             {sessionValue.user.avatar_url ? (
               <AvatarView
@@ -741,14 +741,14 @@ function MerchantPage() {
             ) : (
               <span
                 aria-hidden="true"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-mist text-sm font-semibold text-ink"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-mist text-sm font-bold text-ink"
               >
                 {sessionValue.user.name.charAt(0).toUpperCase()}
               </span>
             )}
 
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-ink">
+              <p className="truncate text-sm font-bold text-ink">
                 {sessionValue.user.name}
               </p>
               <p className="truncate text-xs text-muted">
@@ -760,25 +760,25 @@ function MerchantPage() {
           <button
             type="button"
             onClick={handleLogout}
-            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand-strong"
+            className="brutal-press inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[10px] border-2 border-ink bg-canvas px-3 text-sm font-bold text-ink shadow-brutal-sm"
           >
             <LogOut
               aria-hidden="true"
               className="h-4 w-4"
-              strokeWidth={1.75}
+              strokeWidth={2}
             />
             <span className="hidden sm:inline">Keluar</span>
           </button>
         </div>
 
-        <div className="rounded-xl border border-line bg-canvas p-5 sm:p-6">
+        <div className="rounded-2xl border-2 border-ink bg-canvas p-5 shadow-brutal sm:p-6">
           <p
-            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-ink"
+            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-ink"
             aria-live="polite"
           >
             <span
               aria-hidden="true"
-              className={`h-2.5 w-2.5 rounded-full ${
+              className={`h-3 w-3 rounded-[3px] border border-ink ${
                 isSelling ? 'bg-brand' : 'bg-muted'
               }`}
             />
@@ -789,7 +789,7 @@ function MerchantPage() {
                 : 'Sudah tutup'}
           </p>
 
-          <h2 className="mt-2 font-display text-xl font-bold tracking-tight text-ink">
+          <h2 className="mt-2 font-display text-xl leading-tight tracking-tight text-ink">
             {merchant.merchant_name}
           </h2>
 
@@ -809,7 +809,7 @@ function MerchantPage() {
               type="button"
               onClick={() => handleUpdateLocation(false)}
               disabled={isUpdatingLocation}
-              className="inline-flex min-h-12 items-center justify-center gap-3 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60"
+              className="brutal-press inline-flex min-h-12 items-center justify-center gap-3 rounded-[10px] border-2 border-ink bg-brand px-5 text-sm font-bold text-ink shadow-brutal-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isUpdatingLocation ? (
                 <LoaderCircle
@@ -821,7 +821,7 @@ function MerchantPage() {
                 <LocateFixed
                   aria-hidden="true"
                   className="h-5 w-5 shrink-0"
-                  strokeWidth={1.75}
+                  strokeWidth={2}
                 />
               )}
 
@@ -832,7 +832,7 @@ function MerchantPage() {
               type="button"
               onClick={handleCloseShop}
               disabled={isClosing || !merchant.is_available}
-              className="inline-flex min-h-12 items-center justify-center gap-2.5 rounded-lg border border-line bg-canvas px-5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
+              className="brutal-press inline-flex min-h-12 items-center justify-center gap-2.5 rounded-[10px] border-2 border-ink bg-canvas px-5 text-sm font-bold text-ink shadow-brutal-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isClosing ? (
                 <LoaderCircle
@@ -844,7 +844,7 @@ function MerchantPage() {
                 <Power
                   aria-hidden="true"
                   className="h-4 w-4"
-                  strokeWidth={1.75}
+                  strokeWidth={2}
                 />
               )}
               Tutup jualan
@@ -879,7 +879,7 @@ function AvatarView({
     return (
       <span
         aria-hidden="true"
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-mist text-sm font-semibold text-ink"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-mist text-sm font-bold text-ink"
       >
         {initial}
       </span>
@@ -891,7 +891,7 @@ function AvatarView({
       src={src}
       alt=""
       onError={() => setHasFailed(true)}
-      className="h-11 w-11 shrink-0 rounded-full border border-line object-cover"
+      className="h-11 w-11 shrink-0 rounded-xl border-2 border-ink object-cover"
     />
   )
 }
@@ -904,21 +904,21 @@ function MerchantPageShell({
 }) {
   return (
     <main className="min-h-screen bg-canvas text-ink">
-      <header className="border-b border-line">
+      <header className="border-b-[3px] border-ink">
         <div className="mx-auto flex max-w-lg items-center gap-4 px-5 py-4 sm:px-6">
           <a
             href="#/"
-            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand-strong underline-offset-4 hover:underline"
+            className="brutal-press inline-flex min-h-11 items-center gap-2 rounded-[10px] border-2 border-ink bg-canvas px-3 text-sm font-bold text-ink shadow-brutal-sm"
           >
             <ChevronLeft
               aria-hidden="true"
               className="h-4 w-4"
-              strokeWidth={1.75}
+              strokeWidth={2}
             />
             Cari kopi
           </a>
 
-          <span className="font-display text-base font-bold tracking-tight text-muted">
+          <span className="font-display text-base tracking-tight text-ink">
             Area Pedagang
           </span>
         </div>

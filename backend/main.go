@@ -87,6 +87,15 @@ type MerchantsResponse struct {
 }
 
 func main() {
+	// File .env bersifat opsional dan dibaca lebih dulu supaya nilai
+	// seperti DATABASE_URL ikut terpakai saat membuka koneksi. Variabel
+	// environment sistem tetap lebih unggul daripada isi berkas ini.
+	loadDotEnv("backend/.env", ".env")
+
+	if googleClientID() == "" {
+		log.Println("PERINGATAN: GOOGLE_CLIENT_ID belum diisi; tombol masuk Google tidak akan berfungsi.")
+	}
+
 	// Konfigurasi koneksi database.
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
@@ -109,10 +118,6 @@ func main() {
 	}
 
 	log.Println("Berhasil terhubung ke PostgreSQL")
-
-	// File .env bersifat opsional: ada yang terbaca, tidak ada yang
-	// melucu. Variabelenvironment sistem tetap lebih unggul.
-	loadDotEnv("backend/.env", ".env")
 
 	// Router HTTP.
 	mux := http.NewServeMux()

@@ -1,8 +1,9 @@
 
 import { useEffect, useRef } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Coffee } from 'lucide-react'
 import L from 'leaflet'
+import GerobakIcon from './GerobakIcon'
+import { resolveMarkerColor, resolveMarkerIconColor } from '../lib/marker'
 
 type Merchant = {
   id: number
@@ -21,23 +22,6 @@ type MapViewProps = {
   merchants: Merchant[]
   selectedMerchantId: number | null
   userLocation: UserLocation | null
-}
-
-// Warna default kalau pedagang belum punya markerColor.
-const DEFAULT_MARKER_COLOR = '#92400e'
-const HEX_COLOR_PATTERN =
-  /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i
-
-// Memilih warna marker yang valid; selain kode hex atau kosong memakai
-// warna default. Diekspor karena juga dipakai saat memetakan data API.
-export function resolveMarkerColor(markerColor?: string) {
-  const value = markerColor?.trim()
-
-  if (value && HEX_COLOR_PATTERN.test(value)) {
-    return value
-  }
-
-  return DEFAULT_MARKER_COLOR
 }
 
 function prefersReducedMotion() {
@@ -59,24 +43,25 @@ function escapeHtml(value: string) {
   )
 }
 
-// Marker pedagang memakai warna data per brand. Marker yang dipilih
-// dibuat sedikit lebih besar dengan cincin hijau sebagai penanda aktif.
+// Marker pedagang memakai warna data per brand. Bentuknya kotak dengan
+// border tinta dan bayangan keras; marker terpilih diberi garis aksen.
 function createMerchantIcon(
   markerColor: string,
   isSelected: boolean,
 ) {
-  const size = isSelected ? 42 : 38
-  const iconSize = isSelected ? 21 : 19
+  const size = isSelected ? 44 : 38
+  const iconSize = isSelected ? 24 : 21
   const shadow = isSelected
-    ? '0 0 0 3px #0c9b62, 0 2px 6px rgba(32, 41, 35, 0.28)'
-    : '0 2px 5px rgba(32, 41, 35, 0.28)'
+    ? '6px 6px 0 0 #111111'
+    : '4px 4px 0 0 #111111'
+  const outline = isSelected
+    ? 'outline: 3px solid #ffc93c; outline-offset: 2px;'
+    : ''
 
-  const coffeeGlyph = renderToStaticMarkup(
-    <Coffee
+  const cartGlyph = renderToStaticMarkup(
+    <GerobakIcon
       size={iconSize}
-      strokeWidth={2}
-      color="#ffffff"
-      aria-hidden="true"
+      color={resolveMarkerIconColor(markerColor)}
     />,
   )
 
@@ -87,24 +72,22 @@ function createMerchantIcon(
         width: ${size}px;
         height: ${size}px;
         background: ${markerColor};
-        border: 3px solid white;
-        border-radius: 50% 50% 50% 8px;
-        transform: rotate(-45deg);
+        border: 3px solid #111111;
+        border-radius: 6px;
         box-shadow: ${shadow};
+        ${outline}
         display: flex;
         align-items: center;
         justify-content: center;
       ">
-        <div style="
-          transform: rotate(45deg);
-          display: flex;
-          line-height: 0;
-        ">${coffeeGlyph}</div>
+        <div style="display: flex; line-height: 0;">
+          ${cartGlyph}
+        </div>
       </div>
     `,
     iconSize: [size, size],
-    iconAnchor: [size / 2, size],
-    popupAnchor: [0, -size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2 - 8],
   })
 }
 
@@ -132,7 +115,7 @@ function MapView({
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const markersRef = useRef<L.LayerGroup | null>(null)
-  const userMarkerRef = useRef<L.CircleMarker | null>(null)
+  const userMarkerRef = useRef<L.Marker | null>(null)
 
   // Inisialisasi peta satu kali.
   useEffect(() => {
@@ -150,7 +133,22 @@ function MapView({
     mapRef.current = map
     markersRef.current = L.layerGroup().addTo(map)
 
+    // Tile mengikuti tinggi tile bento yang bisa berubah saat font selesai
+    // dimuat atau daftar pedagang bertambah. Tanpa ini, area kosong muncul
+    // di bawah peta karena Leaflet menyimpan ukuran awal.
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize()
+    })
+
+    resizeObserver.observe(container)
+
+    const frame = requestAnimationFrame(() => {
+      map.invalidateSize()
+    })
+
     return () => {
+      cancelAnimationFrame(frame)
+      resizeObserver.disconnect()
       map.remove()
       mapRef.current = null
       markersRef.current = null
@@ -231,16 +229,25 @@ function MapView({
     if (userMarkerRef.current) {
       userMarkerRef.current.setLatLng([latitude, longitude])
     } else {
-      userMarkerRef.current = L.circleMarker(
-        [latitude, longitude],
-        {
-          radius: 8,
-          color: '#ffffff',
-          weight: 3,
-          fillColor: '#0c9b62',
-          fillOpacity: 1,
-        },
-      ).addTo(map)
+      userMarkerRef.current = L.marker([latitude, longitude], {
+        icon: L.divIcon({
+          className: '',
+          html: `
+            <div style="
+              width: 18px;
+              height: 18px;
+              background: #0c9b62;
+              border: 3px solid #111111;
+              border-radius: 4px;
+              box-shadow: 3px 3px 0 0 #111111;
+            "></div>
+          `,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        }),
+        keyboard: false,
+        zIndexOffset: 500,
+      }).addTo(map)
 
       userMarkerRef.current.bindPopup('Lokasi kamu')
     }
@@ -287,12 +294,12 @@ function MapView({
   }, [selectedMerchantId, merchants])
 
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-canvas">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border-2 border-ink bg-mist">
       <div
         ref={mapContainerRef}
         role="region"
         aria-label="Peta pedagang kopi di sekitar"
-        className="h-[50vh] min-h-[300px] w-full bg-mist sm:h-[420px] lg:h-[520px]"
+        className="h-[50vh] min-h-[320px] w-full bg-mist sm:h-[420px] lg:h-full"
       />
     </div>
   )

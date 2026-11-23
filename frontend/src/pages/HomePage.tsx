@@ -1,17 +1,18 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Coffee,
   LocateFixed,
   LoaderCircle,
   MapPin,
   Navigation,
   RotateCcw,
 } from 'lucide-react'
-import MapView, { resolveMarkerColor } from '../components/MapView'
+import BrandFilter from '../components/BrandFilter'
+import GerobakIcon from '../components/GerobakIcon'
+import MapView from '../components/MapView'
+import { resolveMarkerColor, resolveMarkerIconColor } from '../lib/marker'
 import { formatRelativeTime } from '../lib/format'
 
 type UserLocation = {
@@ -19,7 +20,7 @@ type UserLocation = {
   longitude: number
 }
 
-const ALL_BRANDS = 'Semua brand'
+const ALL_BRANDS = 'Semua kategori'
 
 // Batas jumlah pedagang per halaman pada grid 2 kolom tampilan desktop.
 const MERCHANTS_PER_PAGE = 6
@@ -124,22 +125,16 @@ function formatDistance(distanceInKm: number): string {
 // ali-alih lambang gambar rusak.
 function BrandLogo({
   src,
-  isHighlighted,
+  iconColor,
 }: {
   src: string | null
-  isHighlighted: boolean
+  iconColor: string
 }) {
   const [hasFailed, setHasFailed] = useState(false)
 
   if (!src || hasFailed) {
     return (
-      <Coffee
-        aria-hidden="true"
-        className={`h-4 w-4 ${
-          isHighlighted ? 'text-brand-strong' : 'text-muted'
-        }`}
-        strokeWidth={1.75}
-      />
+      <GerobakIcon className="h-4 w-4" color={iconColor} />
     )
   }
 
@@ -448,24 +443,24 @@ function HomePage() {
 
   return (
     <main className="min-h-screen bg-canvas text-ink">
-      <header className="border-b border-line">
+      <header className="border-b-[3px] border-ink">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-6">
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
             <a
               href="/"
-              className="w-fit font-display text-xl font-bold tracking-tight text-ink"
+              className="w-fit font-display text-xl leading-none tracking-tight text-ink sm:text-2xl"
             >
-              CarKo<span className="text-brand-strong">Ling</span>
+              CarTuLing
             </a>
 
-            <span className="text-xs text-muted">
-              Cari Kopi Keliling
+            <span className="text-xs font-semibold text-muted">
+              Cari Tukang Keliling
             </span>
           </div>
 
           <a
             href="#/pedagang"
-            className="inline-flex h-10 items-center whitespace-nowrap rounded-lg border border-line bg-canvas px-2.5 text-xs font-semibold text-ink transition-colors hover:border-brand hover:text-brand-strong sm:h-11 sm:px-3 sm:text-sm"
+            className="brutal-press inline-flex h-11 items-center whitespace-nowrap rounded-[10px] border-2 border-ink bg-canvas px-3 text-xs font-bold shadow-brutal-sm sm:px-4 sm:text-sm"
           >
             Area Pedagang
           </a>
@@ -473,18 +468,17 @@ function HomePage() {
       </header>
 
       <div className="mx-auto max-w-6xl px-5 pb-8 pt-4 sm:px-6 sm:pb-12 sm:pt-6">
-        <div className="grid grid-cols-1 gap-5 sm:gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1fr)] lg:gap-10">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-12">
           <section
-            ref={mapSectionRef}
-            aria-label="Peta lokasi pedagang"
-            className="scroll-mt-4 lg:sticky lg:top-6 lg:self-start"
+            aria-label="Filter dan lokasi"
+            className="rounded-2xl border-2 border-ink bg-canvas p-3 shadow-brutal sm:p-4 lg:col-span-5 lg:col-start-1 lg:row-start-1"
           >
             <div className="grid grid-cols-2 gap-3 lg:flex lg:items-center">
               <button
                 type="button"
                 onClick={handleGetLocation}
                 disabled={isLocating}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-strong text-xs font-semibold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:gap-3 sm:px-5 sm:text-sm"
+                className="brutal-press inline-flex h-11 items-center justify-center gap-2 rounded-[10px] border-2 border-ink bg-accent-soft px-3 text-xs font-bold text-ink shadow-brutal-sm disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:gap-3 sm:px-5 sm:text-sm"
               >
                 {isLocating ? (
                   <LoaderCircle
@@ -496,75 +490,53 @@ function HomePage() {
                   <LocateFixed
                     aria-hidden="true"
                     className="h-4 w-4 shrink-0 sm:h-5 sm:w-5"
-                    strokeWidth={1.75}
+                    strokeWidth={2}
                   />
                 )}
 
                 {isLocating ? (
                   <>
                     <span className="sm:hidden">Mencari...</span>
-                    <span className="hidden sm:inline">
+                    <span className="hidden sm:inline lg:hidden">
                       Mencari lokasi...
                     </span>
+                    <span className="hidden lg:inline">Mencari...</span>
                   </>
                 ) : userLocation ? (
                   <>
                     <span className="sm:hidden">Perbarui</span>
-                    <span className="hidden sm:inline">
+                    <span className="hidden sm:inline lg:hidden">
                       Perbarui lokasi
                     </span>
+                    <span className="hidden lg:inline">Perbarui</span>
                   </>
                 ) : (
                   <>
                     <span className="sm:hidden">Lokasi saya</span>
-                    <span className="hidden sm:inline">
+                    <span className="hidden sm:inline lg:hidden">
                       Gunakan lokasi saya
                     </span>
+                    <span className="hidden lg:inline">Lokasi saya</span>
                   </>
                 )}
               </button>
 
-              <div className="relative min-w-0 lg:flex-1">
+              <div className="min-w-0 lg:flex-1">
                 <label htmlFor="brand-filter" className="sr-only">
-                  Filter brand
+                  Filter kategori
                 </label>
 
-                <select
+                <BrandFilter
                   id="brand-filter"
+                  brands={brandOptions}
                   value={selectedBrand}
-                  onChange={(event) => {
-                    setSelectedBrand(event.target.value)
+                  allLabel={ALL_BRANDS}
+                  isLoading={isLoadingBrands}
+                  error={brandError}
+                  onChange={(brand) => {
+                    setSelectedBrand(brand)
                     setSelectedMerchantId(null)
                   }}
-                  className="h-10 w-full appearance-none rounded-lg border border-line bg-canvas pl-3.5 pr-9 text-xs text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 sm:h-12 sm:pl-4 sm:pr-10 sm:text-sm"
-                >
-                  <option value={ALL_BRANDS}>{ALL_BRANDS}</option>
-
-                  {isLoadingBrands && (
-                    <option value="" disabled>
-                      Memuat brand...
-                    </option>
-                  )}
-
-                  {!isLoadingBrands && brandError && (
-                    <option value="" disabled>
-                      Brand gagal dimuat
-                    </option>
-                  )}
-
-                  {!isLoadingBrands &&
-                    !brandError &&
-                    brandOptions.map(({ brand }) => (
-                      <option key={brand} value={brand}>
-                        {brand}
-                      </option>
-                    ))}
-                </select>
-
-                <ChevronDown
-                  aria-hidden="true"
-                  className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
-                  strokeWidth={1.75}
                 />
               </div>
             </div>
@@ -576,56 +548,65 @@ function HomePage() {
             >
               {locationMessage}
             </p>
-
-            <div className="mt-3">
-              <MapView
-                merchants={merchantsWithDistance}
-                selectedMerchantId={selectedMerchantId}
-                userLocation={userLocation}
-              />
-            </div>
           </section>
 
-          <section aria-labelledby="daftar-pedagang" className="min-w-0">
-            <div className="flex items-end justify-between gap-4 border-b border-line pb-3 sm:pb-3">
+          <section
+            ref={mapSectionRef}
+            aria-label="Peta lokasi pedagang"
+            className="scroll-mt-4 rounded-2xl border-2 border-ink bg-canvas p-3 shadow-brutal lg:col-span-5 lg:col-start-1 lg:row-span-2 lg:row-start-2"
+          >
+            <MapView
+              merchants={merchantsWithDistance}
+              selectedMerchantId={selectedMerchantId}
+              userLocation={userLocation}
+            />
+          </section>
+
+          <section className="rounded-2xl border-2 border-ink bg-canvas p-4 shadow-brutal sm:p-5 lg:col-span-7 lg:col-start-6 lg:row-start-1">
+            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
               <div>
                 <h3
                   id="daftar-pedagang"
-                  className="font-display text-sm font-semibold tracking-tight text-ink sm:text-[1.75rem]"
+                  className="font-display text-xl leading-tight tracking-tight text-ink sm:text-2xl"
                 >
                   Pedagang di sekitar
                 </h3>
 
-                <p className="hidden text-xs text-muted sm:block">
+                <p className="text-xs font-medium text-muted">
                   {userLocation
                     ? 'Diurutkan dari yang paling dekat.'
                     : 'Aktifkan lokasi untuk melihat jarak.'}
                 </p>
               </div>
 
-              <span className="hidden shrink-0 text-xs tabular-nums text-muted sm:block sm:text-sm">
+              <span className="shrink-0 rounded-lg border-2 border-ink bg-mist px-2 py-0.5 text-xs font-bold tabular-nums text-ink">
                 {merchantsMeta?.total ?? 0} pedagang
               </span>
             </div>
+          </section>
 
+          <section
+            aria-labelledby="daftar-pedagang"
+            className="min-w-0 lg:col-span-7 lg:col-start-6 lg:row-start-2"
+          >
             {isLoadingMerchants ? (
               <div
                 role="status"
                 aria-live="polite"
-                className="border-b border-line py-8 text-center sm:py-12"
+                className="rounded-2xl border-2 border-dashed border-ink px-4 py-8 text-center sm:py-10"
               >
                 <span
                   aria-hidden="true"
-                  className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-line border-t-brand"
+                  className="inline-block h-6 w-6 animate-spin border-[3px] border-ink border-t-brand"
                 />
 
-                <p className="mt-3 text-sm text-muted">
+                <p className="mt-3 text-sm font-medium text-muted">
                   Memuat daftar pedagang...
                 </p>
               </div>
             ) : merchantError ? (
-              <div className="border-b border-line py-8 text-center sm:py-12">
-                <p className="font-semibold text-ink">
+              <div className="rounded-2xl border-2 border-dashed border-ink px-4 py-8 text-center sm:py-10">
+                <p className="font-bold text-ink">
                   Daftar pedagang belum bisa dimuat
                 </p>
 
@@ -634,30 +615,30 @@ function HomePage() {
                 </p>
               </div>
             ) : merchantsWithDistance.length === 0 ? (
-              <div className="border-b border-line py-8 text-center sm:py-12">
-                <p className="font-semibold text-ink">
+              <div className="rounded-2xl border-2 border-dashed border-ink px-4 py-8 text-center sm:py-10">
+                <p className="font-bold text-ink">
                   Belum ada pedagang yang cocok
                 </p>
 
                 <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted">
-                  Coba tampilkan semua brand.
+                  Coba tampilkan semua kategori.
                 </p>
 
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-brand-strong underline-offset-4 hover:underline"
+                  className="brutal-press mt-4 inline-flex min-h-11 items-center gap-2 rounded-[10px] border-2 border-ink bg-canvas px-4 text-sm font-bold shadow-brutal-sm"
                 >
                   <RotateCcw
                     aria-hidden="true"
                     className="h-4 w-4"
-                    strokeWidth={1.75}
+                    strokeWidth={2}
                   />
                   Reset filter
                 </button>
               </div>
             ) : (
-              <ul className="-mx-5 mt-5 flex snap-x snap-mandatory scroll-pl-5 gap-3 overflow-x-auto px-5 pb-1 sm:-mx-6 sm:scroll-pl-6 sm:px-6 lg:mx-0 lg:grid lg:snap-none lg:grid-cols-2 lg:overflow-visible lg:px-0 lg:pb-0">
+              <ul className="grid grid-cols-2 gap-3 sm:gap-4">
                 {merchantsWithDistance.map((merchant) => {
                   const isSelected =
                     merchant.id === selectedMerchantId
@@ -665,71 +646,95 @@ function HomePage() {
                   return (
                     <li
                       key={merchant.id}
-                      className={`w-60 shrink-0 snap-start rounded-xl border transition-colors lg:w-auto lg:shrink ${
+                      className={`brutal-press-lg flex h-full flex-col rounded-2xl border-2 border-ink ${
                         isSelected
-                          ? 'border-brand bg-brand-soft'
-                          : 'border-line bg-canvas'
+                          ? 'bg-accent shadow-brutal-lg'
+                          : 'bg-canvas shadow-brutal'
                       }`}
                     >
-                      <div className="p-4">
-                        <div className="flex items-start gap-3">
+                      <div className="flex h-full flex-col overflow-hidden p-2.5 sm:p-4">
+                        <div className="flex items-start gap-2 sm:gap-3">
                           <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line ${
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-ink sm:h-10 sm:w-10 ${
                               isSelected ? 'bg-canvas' : 'bg-mist'
                             }`}
                           >
                             <BrandLogo
                               src={merchant.logoUrl}
-                              isHighlighted={isSelected}
+                              iconColor={resolveMarkerIconColor(
+                                merchant.markerColor,
+                              )}
                             />
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <h3 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm font-semibold text-ink">
-                              {merchant.name}
+                            <h3 className="flex items-baseline gap-x-2 text-xs font-bold text-ink sm:text-sm">
+                              <span className="line-clamp-2">
+                                {merchant.name}
+                              </span>
 
                               {isSelected && (
-                                <span className="text-xs font-medium text-brand-strong">
+                                <span className="hidden shrink-0 rounded-md border border-ink bg-canvas px-1.5 py-0.5 text-[11px] font-bold text-ink sm:inline-flex">
                                   Dipilih
                                 </span>
                               )}
                             </h3>
 
                             <p
-                              className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs ${
+                              className={`mt-1 flex items-center gap-x-2 text-[11px] max-[359px]:flex-col max-[359px]:gap-y-0.5 sm:flex-wrap sm:gap-y-1 sm:text-xs ${
                                 isSelected
-                                  ? 'text-ink'
+                                  ? 'font-medium text-ink'
                                   : 'text-muted'
                               }`}
                             >
-                              <span className="inline-flex items-center gap-1.5">
+                              <span className="inline-flex min-w-0 items-center gap-1.5">
                                 <span
                                   aria-hidden="true"
-                                  className="h-2 w-2 rounded-full"
+                                  className="h-2.5 w-2.5 shrink-0 rounded-[2px] border border-ink"
                                   style={{
                                     backgroundColor:
                                       merchant.markerColor,
                                   }}
                                 />
-                                {merchant.brand}
+                                <span className="max-sm:truncate">
+                                  {merchant.brand}
+                                </span>
                               </span>
 
-                              <span aria-hidden="true">/</span>
+                              <span className="inline-flex shrink-0 items-center gap-1.5">
+                                <span
+                                  aria-hidden="true"
+                                  className="max-[359px]:hidden"
+                                >
+                                  /
+                                </span>
 
-                              <span className="tabular-nums">
-                                {merchant.distanceLabel}
+                                <span className="tabular-nums">
+                                  {merchant.distanceInKm === null ? (
+                                    <>
+                                      {/* Di HP, jarak yang belum diketahui
+                                          dipendekkan agar tidak meluber. */}
+                                      <span className="sm:hidden">-</span>
+                                      <span className="hidden sm:inline">
+                                        {merchant.distanceLabel}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    merchant.distanceLabel
+                                  )}
+                                </span>
                               </span>
                             </p>
 
                             {merchant.updatedLabel && (
-                              <p className="mt-1 text-xs tabular-nums text-muted">
+                              <p className="mt-1 hidden text-xs tabular-nums text-muted sm:block">
                                 Titik diperbarui {merchant.updatedLabel}
                               </p>
                             )}
                           </div>
                         </div>
 
-                        <div className="mt-3 flex gap-2">
+                        <div className="mt-auto flex gap-2 pt-3">
                           <button
                             type="button"
                             onClick={() =>
@@ -737,18 +742,14 @@ function HomePage() {
                             }
                             aria-pressed={isSelected}
                             aria-label={`Lihat lokasi ${merchant.name} di peta`}
-                            className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors ${
-                              isSelected
-                                ? 'border-brand bg-canvas text-brand-strong'
-                                : 'border-line bg-canvas text-ink hover:border-brand hover:text-brand-strong'
-                            }`}
+                            className="brutal-press inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-[10px] border-2 border-ink bg-canvas px-2 text-sm font-bold text-ink shadow-brutal-sm sm:gap-2 sm:px-3"
                           >
                             <MapPin
                               aria-hidden="true"
                               className="h-4 w-4"
-                              strokeWidth={1.75}
+                              strokeWidth={2}
                             />
-                            Lokasi
+                            <span className="hidden sm:inline">Lokasi</span>
                           </button>
 
                           <button
@@ -760,18 +761,14 @@ function HomePage() {
                               )
                             }
                             aria-label={`Buka rute ke ${merchant.name} di Google Maps`}
-                            className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-brand-strong transition-colors ${
-                              isSelected
-                                ? 'hover:bg-canvas'
-                                : 'hover:bg-brand-soft'
-                            }`}
+                            className="brutal-press inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-[10px] border-2 border-ink bg-accent-soft px-2 text-sm font-bold text-ink shadow-brutal-sm sm:gap-2 sm:px-3"
                           >
                             <Navigation
                               aria-hidden="true"
                               className="h-4 w-4"
-                              strokeWidth={1.75}
+                              strokeWidth={2}
                             />
-                            Rute
+                            <span className="hidden sm:inline">Rute</span>
                           </button>
                         </div>
                       </div>
@@ -780,12 +777,13 @@ function HomePage() {
                 })}
               </ul>
             )}
+          </section>
 
-            {totalPages > 1 && (
-              <nav
-                aria-label="Navigasi halaman daftar pedagang"
-                className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4"
-              >
+          {totalPages > 1 && (
+            <nav
+              aria-label="Navigasi halaman daftar pedagang"
+              className="flex items-center justify-between gap-3 rounded-2xl border-2 border-ink bg-canvas p-3 shadow-brutal lg:col-span-7 lg:col-start-6 lg:row-start-3"
+            >
                 <button
                   type="button"
                   onClick={() =>
@@ -796,12 +794,12 @@ function HomePage() {
                   }
                   disabled={currentPage === 1}
                   aria-label="Halaman sebelumnya"
-                  className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-canvas px-3.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
+                  className="brutal-press inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-[10px] border-2 border-ink bg-canvas px-3.5 text-sm font-bold text-ink shadow-brutal-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <ChevronLeft
                     aria-hidden="true"
                     className="h-4 w-4"
-                    strokeWidth={1.75}
+                    strokeWidth={2}
                   />
                   <span className="hidden sm:inline">Sebelumnya</span>
                 </button>
@@ -823,25 +821,24 @@ function HomePage() {
                   }
                   disabled={currentPage === totalPages}
                   aria-label="Halaman berikutnya"
-                  className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-canvas px-3.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
+                  className="brutal-press inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-[10px] border-2 border-ink bg-canvas px-3.5 text-sm font-bold text-ink shadow-brutal-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="hidden sm:inline">Berikutnya</span>
                   <ChevronRight
                     aria-hidden="true"
                     className="h-4 w-4"
-                    strokeWidth={1.75}
+                    strokeWidth={2}
                   />
                 </button>
               </nav>
             )}
-          </section>
         </div>
       </div>
 
-      <footer className="border-t border-line">
+      <footer className="border-t-[3px] border-ink">
         <div className="mx-auto flex max-w-6xl flex-col gap-1 px-5 py-8 text-sm text-muted sm:flex-row sm:items-baseline sm:gap-3 sm:px-6">
-          <span className="font-display text-base font-semibold text-ink">
-            KopiKeliling
+          <span className="font-display text-base text-ink">
+            CarTuLing
           </span>
           <span>By <b>Daniar Nur Amin</b></span>
         </div>
