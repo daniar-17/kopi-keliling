@@ -854,7 +854,7 @@ function MerchantPage() {
           </div>
 
           <p className="mt-1 text-sm text-muted">
-            Brand {merchant.brand_name}
+            {merchant.brand_name}
             {merchant.phone ? ` · ${merchant.phone}` : ''}
           </p>
 
