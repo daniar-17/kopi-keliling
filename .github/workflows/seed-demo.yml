@@ -1,0 +1,24 @@
+name: Segarkan data demo
+
+# Titik pedagang dianggap basi setelah 2 jam (availabilityTTL di backend).
+# Alur ini menjalankan ulang seed tiap jam supaya peta pada demo publik
+# tidak kosong ketika dibuka kapan saja.
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    env:
+      # Simpan connection string Neon (direct, dengan ?sslmode=require)
+      # sebagai repository secret bernama NEON_DATABASE_URL.
+      NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Jalankan seed ke Neon
+        if: env.NEON_DATABASE_URL != ''
+        run: psql "$NEON_DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/seeds/demo_merchants.sql

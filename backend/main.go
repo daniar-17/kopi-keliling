@@ -97,27 +97,8 @@ func main() {
 	}
 
 	// Konfigurasi koneksi database.
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		databaseURL = "postgres://kopi_user:kopi_local_password@localhost:5432/kopi_keliling?sslmode=disable"
-	}
-
-	var err error
-	db, err = sql.Open("pgx", databaseURL)
-	if err != nil {
-		log.Fatal("Gagal membuka koneksi database:", err)
-	}
+	connectDatabase()
 	defer db.Close()
-
-	// Pastikan database bisa diakses.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.PingContext(ctx); err != nil {
-		log.Fatal("Gagal terhubung ke PostgreSQL:", err)
-	}
-
-	log.Println("Berhasil terhubung ke PostgreSQL")
 
 	// Router HTTP.
 	mux := http.NewServeMux()
@@ -146,24 +127,23 @@ func main() {
 	mux.HandleFunc("POST /api/merchants/me/location", postMerchantLocation)
 	mux.HandleFunc("DELETE /api/merchants/me/location", deleteMerchantLocation)
 
-	// CORS untuk frontend Vite.
+	// CORS untuk frontend Vite dan domain production (CORS_ORIGINS).
+	allowedOrigins := corsOrigins()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		allowedOrigins := map[string]bool{
-			"http://localhost:5173": true,
-			"http://127.0.0.1:5173": true,
-		}
-
 		origin := r.Header.Get("Origin")
 
-		// Untuk mode pengembangan, origin apa pun di port 5173 boleh
-		// mengakses API, supaya HP di jaringan yang sama yang membuka
-		// http://<IP-komputer>:5173 juga diizinkan.
-		allowedOrigin :=
-			allowedOrigins[origin] || strings.HasSuffix(origin, ":5173")
+		// Origin apa pun di port 5173 tetap boleh saat pengembangan, supaya
+		// HP di jaringan yang sama yang membuka http://<IP-komputer>:5173
+		// juga diizinkan.
+		allowedOrigin := origin != "" &&
+			(allowedOrigins[origin] || strings.HasSuffix(origin, ":5173"))
+
+		// Vary selalu dikirim supaya cache tidak menyajikan respons milik
+		// origin lain.
+		w.Header().Add("Vary", "Origin")
 
 		if allowedOrigin {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Vary", "Origin")
 			w.Header().Set(
 				"Access-Control-Allow-Methods",
 				"GET, POST, PUT, PATCH, DELETE, OPTIONS",
@@ -192,6 +172,63 @@ func main() {
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal("Gagal menjalankan HTTP server:", err)
 	}
+}
+
+// connectDatabase membuka pool koneksi dan memastikan database bisa
+// diakses. Neon menangguhkan compute saat menganggur, jadi percobaan
+// diulang sebentar sebelum menyerah; ini juga mencegah deploy gagal hanya
+// karena database baru bangun.
+func connectDatabase() {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		databaseURL = "postgres://kopi_user:kopi_local_password@localhost:5432/kopi_keliling?sslmode=disable"
+	}
+
+	var err error
+	db, err = sql.Open("pgx", databaseURL)
+	if err != nil {
+		log.Fatal("Gagal membuka koneksi database:", err)
+	}
+
+	const attempts = 5
+	const delay = 2 * time.Second
+
+	for attempt := 1; attempt <= attempts; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err = db.PingContext(ctx)
+		cancel()
+
+		if err == nil {
+			log.Println("Berhasil terhubung ke PostgreSQL")
+			return
+		}
+
+		log.Printf("Percobaan %d/%d koneksi PostgreSQL gagal: %v", attempt, attempts, err)
+
+		if attempt < attempts {
+			time.Sleep(delay)
+		}
+	}
+
+	log.Fatal("Gagal terhubung ke PostgreSQL:", err)
+}
+
+// corsOrigins membaca daftar origin yang diizinkan dari CORS_ORIGINS
+// (dipisah koma). Origin pengembangan selalu ikut diizinkan.
+func corsOrigins() map[string]bool {
+	origins := map[string]bool{
+		"http://localhost:5173": true,
+		"http://127.0.0.1:5173": true,
+	}
+
+	for _, origin := range strings.Split(os.Getenv("CORS_ORIGINS"), ",") {
+		origin = strings.TrimSpace(origin)
+		if origin != "" {
+			origins[origin] = true
+		}
+	}
+
+	return origins
 }
 
 func getBrands(w http.ResponseWriter, r *http.Request) {

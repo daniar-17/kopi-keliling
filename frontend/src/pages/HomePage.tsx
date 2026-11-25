@@ -14,6 +14,7 @@ import GerobakIcon from '../components/GerobakIcon'
 import MapView from '../components/MapView'
 import { resolveMarkerColor, resolveMarkerIconColor } from '../lib/marker'
 import { formatRelativeTime } from '../lib/format'
+import { API_BASE_URL } from '../lib/api'
 
 type UserLocation = {
   latitude: number
@@ -24,11 +25,6 @@ const ALL_BRANDS = 'Semua kategori'
 
 // Batas jumlah pedagang per halaman pada grid 2 kolom tampilan desktop.
 const MERCHANTS_PER_PAGE = 6
-
-// Backend mengikuti hostname tempat halaman dibuka, supaya aplikasi tetap
-// berjalan saat diakses dari perangkat lain (misalnya HP) di jaringan yang
-// sama, bukan hanya dari localhost.
-const API_BASE_URL = `http://${window.location.hostname}:8080`
 
 type Brand = {
   id: number
@@ -450,11 +446,11 @@ function HomePage() {
               href="/"
               className="w-fit font-display text-xl leading-none tracking-tight text-ink sm:text-2xl"
             >
-              CarTuLing
+              CarDaLing
             </a>
 
             <span className="text-xs font-semibold text-muted">
-              Cari Tukang Keliling
+              Cari Pedagang Keliling
             </span>
           </div>
 
@@ -838,7 +834,7 @@ function HomePage() {
       <footer className="border-t-[3px] border-ink">
         <div className="mx-auto flex max-w-6xl flex-col gap-1 px-5 py-8 text-sm text-muted sm:flex-row sm:items-baseline sm:gap-3 sm:px-6">
           <span className="font-display text-base text-ink">
-            CarTuLing
+            CarDaLing
           </span>
           <span>By <b>Daniar Nur Amin</b></span>
         </div>

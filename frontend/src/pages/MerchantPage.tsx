@@ -576,11 +576,11 @@ function MerchantPage() {
       <MerchantPageShell>
         <div className="rounded-2xl border-2 border-ink bg-canvas p-6 shadow-brutal sm:p-8">
           <h1 className="font-display text-2xl leading-tight tracking-tight text-ink sm:text-3xl">
-            Jualan, titikmu di peta
+            Ayo Jualan dan Daftarkan Dirimu
           </h1>
 
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            Untuk pedagang kopi keliling. Peta konsumen sudah terbuka;
+            Untuk pedagang keliling. Peta konsumen sudah terbuka,
             lengkapi titikmu lewat akun Google.
           </p>
 
@@ -915,7 +915,7 @@ function MerchantPageShell({
               className="h-4 w-4"
               strokeWidth={2}
             />
-            Cari kopi
+            Cari Pedagang
           </a>
 
           <span className="font-display text-base tracking-tight text-ink">

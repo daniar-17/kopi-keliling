@@ -40,8 +40,23 @@ var (
 
 // proxyLogoURL menautkan logo brand ke proxy di backend ini, bukan ke
 // sumbernya langsung, supaya kuota Google tidak memampu memandu logo padam.
+// Skema mengikuti koneksi asli (Render meneruskannya lewat
+// X-Forwarded-Proto) agar gambar tidak diblokir sebagai mixed content saat
+// halaman disajikan lewat HTTPS.
 func proxyLogoURL(r *http.Request, brandID int64) string {
-	return fmt.Sprintf("http://%s/api/brands/%d/logo", r.Host, brandID)
+	scheme := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
+	if comma := strings.Index(scheme, ","); comma >= 0 {
+		scheme = strings.TrimSpace(scheme[:comma])
+	}
+
+	if scheme == "" {
+		scheme = "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+	}
+
+	return fmt.Sprintf("%s://%s/api/brands/%d/logo", scheme, r.Host, brandID)
 }
 
 // getBrandLogo menyalurkan gambar logo satu brand: dari cache bila masih
