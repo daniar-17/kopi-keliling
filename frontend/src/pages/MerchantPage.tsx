@@ -11,6 +11,7 @@ import {
   LoaderCircle,
   LocateFixed,
   LogOut,
+  Pencil,
   Power,
 } from 'lucide-react'
 import {
@@ -103,7 +104,8 @@ type Session = {
   merchant: ApiMerchantProfile | null
 }
 
-// Empat keadaan layar: memuat, masuk, melengkapi profil, dan dasbor.
+// Empat keadaan layar: memuat, masuk, form profil (pendaftaran atau edit),
+// dan dasbor.
 type View = 'loading' | 'login' | 'onboarding' | 'dashboard'
 
 // Memuat skrip tombol masuk Google satu kali, lalu memakai ulang apinya.
@@ -492,7 +494,8 @@ function MerchantPage() {
     }
   }
 
-  // Menyimpan profil toko dari form onboarding.
+  // Menyimpan profil toko, baik saat pendaftaran maupun saat edit dari
+  // dasbor. Endpoint yang sama memang menangani keduanya (upsert).
   async function handleSaveProfile(event: FormEvent) {
     event.preventDefault()
 
@@ -502,15 +505,17 @@ function MerchantPage() {
       return
     }
 
+    const editingExistingProfile = session?.merchant != null
+
     const merchantName = formName.trim()
 
     if (!merchantName) {
-      setNotice('Nama toko wajib diisi.')
+      setNotice('Nama dagangan wajib diisi.')
       return
     }
 
     if (formBrandId === '') {
-      setNotice('Pilih brand yang kamu dagangkan.')
+      setNotice('Pilih yang kamu dagangkan.')
       return
     }
 
@@ -544,12 +549,37 @@ function MerchantPage() {
           : current,
       )
       setView('dashboard')
-      setNotice('Profil tersimpan. Aktifkan lokasi untuk memulai berjualan.')
+      setNotice(
+        editingExistingProfile
+          ? 'Profil diperbarui.'
+          : 'Profil tersimpan. Aktifkan lokasi untuk memulai berjualan.',
+      )
     } catch {
       setNotice('Profil gagal disimpan. Pastikan backend berjalan.')
     } finally {
       setIsSavingProfile(false)
     }
+  }
+
+  // Membuka form profil dengan nilai yang sekarang tersimpan, supaya
+  // pedagang bisa memperbaiki nama toko, nomor WA, atau brand dagangannya.
+  function openProfileEditor() {
+    const merchant = session?.merchant
+
+    if (!merchant) {
+      return
+    }
+
+    setFormName(merchant.merchant_name)
+    setFormPhone(merchant.phone ?? '')
+    setFormBrandId(String(merchant.brand_id))
+    setNotice('')
+    setView('onboarding')
+  }
+
+  function cancelProfileEdit() {
+    setNotice('')
+    setView('dashboard')
   }
 
   function handleLogout() {
@@ -558,6 +588,10 @@ function MerchantPage() {
     clearSessionToken()
     setView('login')
   }
+
+  // Form profil dipakai untuk pendaftaran pertama dan untuk edit dari
+  // dasbor; keberadaan profil menandakan mode edit.
+  const isEditingProfile = session?.merchant != null
 
   if (view === 'loading') {
     return <MerchantPageShell>
@@ -607,11 +641,13 @@ function MerchantPage() {
       <MerchantPageShell>
         <div className="rounded-2xl border-2 border-ink bg-canvas p-6 shadow-brutal sm:p-8">
           <h1 className="font-display text-2xl leading-tight tracking-tight text-ink sm:text-3xl">
-            Lengkapi toko kamu
+            {isEditingProfile ? 'Edit profil dagangan' : 'Lengkapi dagangan kamu'}
           </h1>
 
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            Data ini yang dilihat konsumen di sekitar kamu.
+            {isEditingProfile
+              ? 'Perubahan langsung terlihat konsumen di sekitar kamu.'
+              : 'Data ini yang dilihat konsumen di sekitar kamu.'}
           </p>
 
           <form
@@ -620,7 +656,7 @@ function MerchantPage() {
           >
             <div className="grid gap-1.5">
               <label htmlFor="merchant-name" className="text-sm font-bold text-ink">
-                Nama toko
+                Nama dagangan
               </label>
 
               <input
@@ -652,7 +688,7 @@ function MerchantPage() {
 
             <div className="grid gap-1.5">
               <label htmlFor="merchant-brand" className="text-sm font-bold text-ink">
-                Brand dagangan
+                Dagangan
               </label>
 
               <div className="relative">
@@ -663,7 +699,7 @@ function MerchantPage() {
                   className="brutal-input h-12 w-full appearance-none pl-4 pr-10 text-sm invalid:text-muted"
                 >
                   <option value="" disabled>
-                    {isLoadingBrands ? 'Memuat brand...' : 'Pilih brand'}
+                    {isLoadingBrands ? 'Memuat dagangan...' : 'Pilih Dagangan'}
                   </option>
 
                   {brandOptions.map((brand) => (
@@ -685,20 +721,32 @@ function MerchantPage() {
               )}
             </div>
 
-            <button
-              type="submit"
-              disabled={isSavingProfile || isLoadingBrands}
-              className="brutal-press inline-flex h-12 items-center justify-center gap-3 rounded-[10px] border-2 border-ink bg-brand text-sm font-bold text-ink shadow-brutal-sm disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSavingProfile && (
-                <LoaderCircle
-                  aria-hidden="true"
-                  className="h-5 w-5 shrink-0 animate-spin"
-                  strokeWidth={2}
-                />
+            <div className={`grid gap-2.5${isEditingProfile ? ' sm:grid-cols-2' : ''}`}>
+              <button
+                type="submit"
+                disabled={isSavingProfile || isLoadingBrands}
+                className="brutal-press inline-flex h-12 w-full items-center justify-center gap-3 rounded-[10px] border-2 border-ink bg-brand text-sm font-bold text-ink shadow-brutal-sm disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingProfile && (
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="h-5 w-5 shrink-0 animate-spin"
+                    strokeWidth={2}
+                  />
+                )}
+                {isEditingProfile ? 'Simpan perubahan' : 'Simpan'}
+              </button>
+
+              {isEditingProfile && (
+                <button
+                  type="button"
+                  onClick={cancelProfileEdit}
+                  className="brutal-press inline-flex h-12 w-full items-center justify-center rounded-[10px] border-2 border-ink bg-canvas text-sm font-bold text-ink shadow-brutal-sm"
+                >
+                  Batal
+                </button>
               )}
-              Simpan profil
-            </button>
+            </div>
           </form>
 
           <NoticeText notice={notice} className="mt-4" />
@@ -789,9 +837,21 @@ function MerchantPage() {
                 : 'Sudah tutup'}
           </p>
 
-          <h2 className="mt-2 font-display text-xl leading-tight tracking-tight text-ink">
-            {merchant.merchant_name}
-          </h2>
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <h2 className="min-w-0 font-display text-xl leading-tight tracking-tight text-ink">
+              {merchant.merchant_name}
+            </h2>
+
+            <button
+              type="button"
+              onClick={openProfileEditor}
+              aria-label="Edit profil dagangan"
+              className="brutal-press inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-[8px] border-2 border-ink bg-canvas px-3 text-xs font-bold text-ink shadow-brutal-sm"
+            >
+              <Pencil aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
+              Edit
+            </button>
+          </div>
 
           <p className="mt-1 text-sm text-muted">
             Brand {merchant.brand_name}
