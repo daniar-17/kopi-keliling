@@ -25,7 +25,7 @@ CREATE TABLE brands (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Profil pedagang kopi keliling.
+-- Profil pedagang keliling.
 CREATE TABLE merchants (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id BIGINT NOT NULL UNIQUE REFERENCES users(id),

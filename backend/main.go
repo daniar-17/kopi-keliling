@@ -107,7 +107,7 @@ func main() {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, HealthResponse{
 			Status:  "ok",
-			Message: "KopiKeliling API is running",
+			Message: "CarDaLing API is running",
 		})
 	})
 
@@ -167,7 +167,7 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("KopiKeliling API berjalan di http://localhost:%s", port)
+	log.Printf("CarDaLing API berjalan di http://localhost:%s", port)
 
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal("Gagal menjalankan HTTP server:", err)

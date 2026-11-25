@@ -117,7 +117,7 @@ function formatDistance(distanceInKm: number): string {
 }
 
 // Logo brand dengan pengaman: kalau gambar gagal dimuat (misalnya
-// berbagi Drive berubah atau diblokir ekstensi), ikon kopi yang tampil
+// berbagi Drive berubah atau diblokir ekstensi), ikon gerobak yang tampil
 // ali-alih lambang gambar rusak.
 function BrandLogo({
   src,

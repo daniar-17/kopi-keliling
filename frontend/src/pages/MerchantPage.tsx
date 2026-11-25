@@ -510,7 +510,7 @@ function MerchantPage() {
     }
 
     if (formBrandId === '') {
-      setNotice('Pilih brand kopi yang kamu dagangkan.')
+      setNotice('Pilih brand yang kamu dagangkan.')
       return
     }
 
@@ -627,7 +627,7 @@ function MerchantPage() {
                 id="merchant-name"
                 value={formName}
                 onChange={(event) => setFormName(event.target.value)}
-                placeholder="Kopi Keliling - Pak Asep"
+                placeholder="Cilor - Pak Asep"
                 maxLength={150}
                 className="brutal-input h-12 w-full px-4 text-sm"
               />
@@ -652,7 +652,7 @@ function MerchantPage() {
 
             <div className="grid gap-1.5">
               <label htmlFor="merchant-brand" className="text-sm font-bold text-ink">
-                Brand kopi
+                Brand dagangan
               </label>
 
               <div className="relative">

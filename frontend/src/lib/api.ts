@@ -10,7 +10,7 @@ export const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL?.trim() || fallbackBaseURL
 ).replace(/\/+$/, '')
 
-const SESSION_STORAGE_KEY = 'kopikeliling_session'
+const SESSION_STORAGE_KEY = 'cardaling_session'
 
 export function readSessionToken(): string | null {
   return localStorage.getItem(SESSION_STORAGE_KEY)

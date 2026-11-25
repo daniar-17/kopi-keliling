@@ -298,7 +298,7 @@ function MapView({
       <div
         ref={mapContainerRef}
         role="region"
-        aria-label="Peta pedagang kopi di sekitar"
+        aria-label="Peta pedagang keliling di sekitar"
         className="h-[50vh] min-h-[320px] w-full bg-mist sm:h-[420px] lg:h-full"
       />
     </div>

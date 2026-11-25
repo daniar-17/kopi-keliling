@@ -139,7 +139,7 @@ func authSecret() string {
 	if secret == "" {
 		log.Println("PERINGATAN: AUTH_JWT_SECRET belum diisi, memakai rahasia pengembangan. Setel variabel ini sebelum dipakai sungguhan.")
 
-		return "kopi-keliling-dev-secret-ganti-di-produksi"
+		return "cardaling-dev-secret-ganti-di-produksi"
 	}
 
 	return secret

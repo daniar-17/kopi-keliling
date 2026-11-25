@@ -1,6 +1,6 @@
-# Kopi Keliling
+# CarDaLing
 
-Peta pedagang kopi keliling: konsumen melihat titik pedagang yang sedang
+Peta direktori pedagang keliling: konsumen melihat titik pedagang yang sedang
 berjualan, pedagang mengelola lokasinya lewat login Google.
 
 - `backend/` — API Go (net/http + pgx), migrasi SQL, dan seed data contoh.
@@ -168,7 +168,7 @@ Environment yang perlu diisi:
 | `DATABASE_URL` | connection string Neon |
 | `GOOGLE_CLIENT_ID` | klien OAuth yang sama dengan frontend |
 | `AUTH_JWT_SECRET` | teks acak panjang, mis. `openssl rand -hex 32` |
-| `CORS_ORIGINS` | alamat Vercel, mis. `https://kopi-keliling.vercel.app` |
+| `CORS_ORIGINS` | alamat Vercel, mis. `https://cardaling.vercel.app` |
 
 `PORT` diisi otomatis oleh Render.
 
